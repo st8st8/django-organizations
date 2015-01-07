@@ -1,11 +1,10 @@
 from django import forms
 from django.contrib.sites.models import get_current_site
 from django.utils.translation import ugettext_lazy as _
-from markitup.widgets import MarkItUpWidget
 
-from organizations.models import Organization, OrganizationUser, get_user_model
-from organizations.utils import create_organization
-from organizations.backends import invitation_backend
+from .models import Organization, OrganizationUser, get_user_model
+from .utils import create_organization
+from .backends import invitation_backend
 
 
 class OrganizationForm(forms.ModelForm):
@@ -16,6 +15,9 @@ class OrganizationForm(forms.ModelForm):
     def __init__(self, request, *args, **kwargs):
         self.request = request
         super(OrganizationForm, self).__init__(*args, **kwargs)
+        self.fields['owner'].queryset = self.instance.organization_users.filter(
+                is_admin=True, user__is_active=True)
+        self.fields['owner'].initial = self.instance.owner.organization_user
 
     class Meta:
         model = Organization
@@ -74,7 +76,8 @@ class OrganizationUserAddForm(forms.ModelForm):
             user = invitation_backend().invite_by_email(
                     self.cleaned_data['email'],
                     **{'domain': get_current_site(self.request),
-                        'organization': self.organization})
+                        'organization': self.organization,
+                        'sender': self.request.user})
         return OrganizationUser.objects.create(user=user,
                 organization=self.organization,
                 is_admin=self.cleaned_data['is_admin'])
@@ -82,7 +85,8 @@ class OrganizationUserAddForm(forms.ModelForm):
     def clean_email(self):
         email = self.cleaned_data['email']
         if self.organization.users.filter(email=email):
-            raise forms.ValidationError(_("There is already an organization member with this email address!"))
+            raise forms.ValidationError(_("There is already an organization "
+                                          "member with this email address!"))
         return email
 
 
@@ -91,10 +95,8 @@ class OrganizationAddForm(forms.ModelForm):
     Form class for creating a new organization, complete with new owner, including a
     User instance, OrganizationUser instance, and OrganizationOwner instance.
     """
-    #email = forms.EmailField(max_length=75,
-#            help_text=_("The email address for the account owner"))
-    owner = forms.IntegerField()
-    description = forms.CharField(widget=MarkItUpWidget())
+    email = forms.EmailField(max_length=75,
+            help_text=_("The email address for the account owner"))
 
     def __init__(self, request, *args, **kwargs):
         self.request = request
@@ -102,7 +104,7 @@ class OrganizationAddForm(forms.ModelForm):
 
     class Meta:
         model = Organization
-        exclude = ('users', 'is_active', 'site')
+        exclude = ('users', 'is_active')
 
     def save(self, **kwargs):
         """
@@ -110,7 +112,7 @@ class OrganizationAddForm(forms.ModelForm):
         """
         is_active = True
         try:
-            user = get_user_model().objects.get(pk=self.cleaned_data['owner'])
+            user = get_user_model().objects.get(email=self.cleaned_data['email'])
         except get_user_model().DoesNotExist:
             user = invitation_backend().invite_by_email(
                     self.cleaned_data['email'],

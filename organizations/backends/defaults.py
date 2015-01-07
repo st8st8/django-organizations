@@ -1,3 +1,6 @@
+"""Backend classes should provide common interface
+"""
+
 import uuid
 
 from django.conf import settings
@@ -10,24 +13,22 @@ from django.shortcuts import render, redirect
 from django.template import Context, loader
 from django.utils.translation import ugettext as _
 
-from organizations.backends.tokens import RegistrationTokenGenerator
-from organizations.backends.forms import (UserRegistrationForm,
-        OrganizationRegistrationForm)
-from organizations.models import get_user_model
-from organizations.utils import create_organization
-from organizations.utils import model_field_attr
-
-
-# Backend classes should provide common interface
+from ..models import get_user_model
+from ..utils import create_organization
+from ..utils import model_field_attr
+from .forms import UserRegistrationForm, OrganizationRegistrationForm
+from .tokens import RegistrationTokenGenerator
 
 
 class BaseBackend(object):
     """
     Base backend class for registering and inviting users to an organization
     """
+    org_model = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, org_model=None, *args, **kwargs):
         self.user_model = get_user_model()
+        self.org_model = org_model
 
     def get_urls(self):
         raise NotImplementedError
@@ -47,13 +48,36 @@ class BaseBackend(object):
         return RegistrationTokenGenerator().make_token(user)
 
     def get_username(self):
-        """Returns a UUID based 'random' and unique username"""
+        """
+        Returns a UUID-based 'random' and unique username.
+
+        This is required data for user models with a username field.
+        """
         return str(uuid.uuid4())[:model_field_attr(self.user_model, 'username', 'max_length')]
+
+    def activate_organizations(self, user):
+        """
+        Activates the related organizations for the user.
+
+        It only activates the related organizations by model type - that is, if
+        there are multiple types of organizations then only organizations in
+        the provided model class are activated.
+        """
+        try:
+            relation_name = self.org_model().user_relation_name
+        except TypeError:
+            # No org_model specified, raises a TypeError because NoneType is
+            # not callable. Thiis the most sensible default
+            relation_name = "organizations_organization"
+        organization_set = getattr(user, relation_name)
+        for org in organization_set.filter(is_active=False):
+            org.is_active = True
+            org.save()
 
     def activate_view(self, request, user_id, token):
         """
-        Activates the given User by setting `is_active` to true if the provided
-        information is verified.
+        View function that activates the given User by setting `is_active` to
+        true if the provided information is verified.
         """
         try:
             user = self.user_model.objects.get(id=user_id, is_active=False)
@@ -67,9 +91,7 @@ class BaseBackend(object):
             user = form.save()
             user.set_password(form.cleaned_data['password'])
             user.save()
-            for org in user.organization_set.filter(is_active=False):
-                org.is_active = True
-                org.save()
+            self.activate_organizations(user)
             user = authenticate(username=form.cleaned_data['username'],
                     password=form.cleaned_data['password'])
             login(request, user)
@@ -86,6 +108,8 @@ class BaseBackend(object):
         self._send_email(user, self.reminder_subject, self.reminder_body,
                 sender, **kwargs)
 
+    # This could be replaced with a more channel agnostic function, most likely
+    # in a custom backend.
     def _send_email(self, user, subject_template, body_template,
             sender=None, **kwargs):
         """Utility method for sending emails to new users"""
@@ -104,7 +128,7 @@ class BaseBackend(object):
 
         subject_template = loader.get_template(subject_template)
         body_template = loader.get_template(body_template)
-        subject = subject_template.render(ctx).strip() # Remove stray newline characters
+        subject = subject_template.render(ctx).strip()  # Remove stray newline characters
         body = body_template.render(ctx)
         return EmailMessage(subject, body, from_email, [user.email],
                 headers=headers).send()
@@ -133,7 +157,7 @@ class RegistrationBackend(BaseBackend):
             url(r'^(?P<user_id>[\d]+)-(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
                 view=self.activate_view, name="registration_register"),
             url(r'^$', view=self.create_view, name="registration_create"),
-            )
+        )
 
     def register_by_email(self, email, sender=None, request=None, **kwargs):
         """
@@ -202,13 +226,15 @@ class InvitationBackend(BaseBackend):
     form_class = UserRegistrationForm
 
     def get_success_url(self):
+        # TODO get this url name from an attribute
         return reverse('organization_list')
 
     def get_urls(self):
+        # TODO enable naming based on a model?
         return patterns('',
             url(r'^(?P<user_id>[\d]+)-(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
                 view=self.activate_view, name="invitations_register"),
-            )
+        )
 
     def invite_by_email(self, email, sender=None, request=None, **kwargs):
         """Creates an inactive user with the information we know and then sends
@@ -220,6 +246,7 @@ class InvitationBackend(BaseBackend):
         try:
             user = self.user_model.objects.get(email=email)
         except self.user_model.DoesNotExist:
+            # TODO break out user creation process
             user = self.user_model.objects.create(username=self.get_username(),
                     email=email, password=self.user_model.objects.make_random_password())
             user.is_active = False

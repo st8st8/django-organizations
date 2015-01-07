@@ -12,8 +12,9 @@ Contents:
     :maxdepth: 2
 
     getting_started
-    basic_usage
+    usage
     custom_usage
+    cookbook
     reference/index
 
 

@@ -4,3 +4,8 @@ dist/
 *.egg-info
 docs/_build
 *.sqlite
+.tox
+.env
+
+.coverage
+htmlcov/

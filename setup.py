@@ -1,18 +1,40 @@
-from setuptools import setup, find_packages
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import os
+import sys
+import organizations
+
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
+
+if sys.argv[-1] == 'publish':
+    os.system('python setup.py sdist upload')
+    os.system('python setup.py bdist_wheel upload')
+    sys.exit()
+
+readme = open('README.rst').read()
+history = open('HISTORY.rst').read().replace('.. :changelog:', '')
 
 
 setup(
     author="Ben Lopatin",
-    author_email="ben.lopatin@wellfireinteractive.com",
+    author_email="ben@wellfire.co",
     name='django-organizations',
-    version='0.1.8',
+    version=organizations.__version__,
     description='Group accounts for Django',
-    long_description=open(os.path.join(os.path.dirname(__file__),
-        'README.rst')).read(),
-    url='https://github.com/wellfire/django-organizations/',
+    long_description=readme + '\n\n' + history,
+    url='https://github.com/bennylope/django-organizations/',
     license='BSD License',
     platforms=['OS Independent'],
+    packages=[
+        'organizations',
+        'organizations.backends',
+        'organizations.south_migrations',
+        'organizations.templatetags',
+    ],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',
@@ -20,14 +42,16 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
         'Framework :: Django',
     ],
     install_requires=[
-        'Django>=1.4',
-        'django-extensions>=0.9',
+        'Django>=1.4.2,<1.8',
     ],
-    #test_suite='tests.runtests.runtests',
+    test_suite='tests',
     include_package_data=True,
-    packages=find_packages(exclude=["tests.tests", "tests.test_app", "tests"]),
-    zip_safe=False
+    zip_safe=False,
 )

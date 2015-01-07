@@ -1,9 +1,8 @@
-from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.utils.translation import ugettext_lazy as _
 
-from organizations.models import Organization, OrganizationUser, OrganizationOwner
+from .models import Organization, OrganizationUser
 
 
 class OrganizationMixin(object):
@@ -25,7 +24,7 @@ class OrganizationMixin(object):
         organization_pk = self.kwargs.get('organization_pk', None)
         self.organization = get_object_or_404(self.get_org_model(), pk=organization_pk)
         return self.organization
-    get_organization = get_object # Now available when `get_object` is overridden
+    get_organization = get_object  # Now available when `get_object` is overridden
 
 
 class OrganizationUserMixin(OrganizationMixin):
@@ -67,7 +66,7 @@ class MembershipRequiredMixin(object):
         self.organization = self.get_organization()
         if not self.organization.is_member(request.user) and not \
                     request.user.is_superuser:
-            raise PermissionDenied
+            return HttpResponseForbidden(_("Wrong organization"))
         return super(MembershipRequiredMixin, self).dispatch(request, *args,
                 **kwargs)
 
@@ -82,7 +81,7 @@ class AdminRequiredMixin(object):
         self.organization = self.get_organization()
         if not self.organization.is_admin(request.user) and not \
                     request.user.is_superuser:
-            raise PermissionDenied
+            return HttpResponseForbidden(_("Sorry, admins only"))
         return super(AdminRequiredMixin, self).dispatch(request, *args,
                 **kwargs)
 
@@ -110,13 +109,8 @@ class OwnerRequiredMixin(object):
         self.args = args
         self.kwargs = kwargs
         self.organization = self.get_organization()
-        try:
-            owner = self.organization.owner
-            is_owner = self.organization.owner.organization_user.user != request.user
-        except OrganizationOwner.DoesNotExist as e:
-            is_owner = False
-
-        if not is_owner and not request.user.is_superuser:
-            raise PermissionDenied
+        if self.organization.owner.organization_user.user != request.user \
+                and not request.user.is_superuser:
+            return HttpResponseForbidden(_("You are not the organization owner"))
         return super(OwnerRequiredMixin, self).dispatch(request, *args,
                 **kwargs)

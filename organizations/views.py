@@ -26,13 +26,13 @@ import logging
 from pymongo.database import Database
 from TinCanApp.tincandb import TinCanActivityProfile
 
-from organizations.models import Organization, OrganizationUser
-from organizations.mixins import (OrganizationMixin, OrganizationUserMixin,
-                                  MembershipRequiredMixin, AdminRequiredMixin, OwnerRequiredMixin, StaffRequiredMixin)
-from organizations.forms import (OrganizationForm, OrganizationUserForm,
-                                 OrganizationUserAddForm, OrganizationAddForm, SignUpForm)
-from organizations.utils import create_organization
-from organizations.backends import invitation_backend, registration_backend
+from .backends import invitation_backend, registration_backend
+from .forms import (OrganizationForm, OrganizationUserForm,
+        OrganizationUserAddForm, OrganizationAddForm, SignUpForm)
+from .mixins import (OrganizationMixin, OrganizationUserMixin,
+        MembershipRequiredMixin, AdminRequiredMixin, OwnerRequiredMixin)
+from .models import Organization
+from .utils import create_organization
 from django.db.models import Q
 from datetime import datetime, timedelta
 from django.utils.timezone import utc
@@ -43,13 +43,13 @@ import tempfile
 
 
 class BaseOrganizationList(ListView):
+    # TODO change this to query on the specified model
     queryset = Organization.active.all()
     context_object_name = "organizations"
 
     def get_queryset(self):
-        ret = super(BaseOrganizationList,
-                    self).get_queryset().filter(users=self.request.user)
-        return ret
+        return super(BaseOrganizationList,
+                self).get_queryset().filter(users=self.request.user)
 
 
 class BaseOrganizationDetail(OrganizationMixin, DetailView):
@@ -72,11 +72,10 @@ class BaseOrganizationDetail(OrganizationMixin, DetailView):
 class BaseOrganizationCreate(CreateView):
     model = Organization
     form_class = OrganizationAddForm
-    template_name = 'organizations/organization_add_form.html'
+    template_name = 'organizations/organization_form.html'
 
     def get_success_url(self):
-        organization_pk = self.get_form_kwargs()["instance"].pk
-        return reverse("organization_detail", args=(organization_pk,))
+        return reverse("organization_list")
 
     def get_form_kwargs(self):
         kwargs = super(BaseOrganizationCreate, self).get_form_kwargs()
@@ -91,9 +90,6 @@ class BaseOrganizationUpdate(OrganizationMixin, UpdateView):
         kwargs = super(BaseOrganizationUpdate, self).get_form_kwargs()
         kwargs.update({'request': self.request})
         return kwargs
-
-    def get_success_url(self):
-        return reverse("organization_detail", kwargs={"organization_pk": self.organization.pk})
 
 
 class BaseOrganizationDelete(OrganizationMixin, DeleteView):
@@ -145,12 +141,12 @@ class BaseOrganizationUserCreate(OrganizationMixin, CreateView):
 
     def get_success_url(self):
         return reverse('organization_user_list',
-                       kwargs={'organization_pk': self.object.organization.pk})
+                kwargs={'organization_pk': self.object.organization.pk})
 
     def get_form_kwargs(self):
         kwargs = super(BaseOrganizationUserCreate, self).get_form_kwargs()
         kwargs.update({'organization': self.organization,
-                       'request': self.request})
+            'request': self.request})
         return kwargs
 
     def get(self, request, *args, **kwargs):
@@ -175,8 +171,8 @@ class BaseOrganizationUserRemind(OrganizationUserMixin, DetailView):
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         invitation_backend().send_reminder(self.object.user,
-                                           **{'domain': get_current_site(self.request),
-                                              'organization': self.organization, 'sender': request.user})
+                **{'domain': get_current_site(self.request),
+                    'organization': self.organization, 'sender': request.user})
         return redirect(self.object)
 
 
@@ -187,7 +183,7 @@ class BaseOrganizationUserUpdate(OrganizationUserMixin, UpdateView):
 class BaseOrganizationUserDelete(OrganizationUserMixin, DeleteView):
     def get_success_url(self):
         return reverse('organization_user_list',
-                       kwargs={'organization_pk': self.object.organization.pk})
+                kwargs={'organization_pk': self.object.organization.pk})
 
 
 class OrganizationSignup(FormView):
@@ -207,7 +203,7 @@ class OrganizationSignup(FormView):
         if request.user.is_authenticated():
             return redirect('organization_add')
         return super(OrganizationSignup, self).dispatch(request, *args,
-                                                        **kwargs)
+                **kwargs)
 
     def get_success_url(self):
         if hasattr(self, 'success_url'):
@@ -219,7 +215,7 @@ class OrganizationSignup(FormView):
         """
         user = self.backend.register_by_email(form.cleaned_data['email'])
         create_organization(user=user, name=form.cleaned_data['name'],
-                            slug=form.cleaned_data['slug'], is_active=False)
+                slug=form.cleaned_data['slug'], is_active=False)
         return redirect(self.get_success_url())
 
 

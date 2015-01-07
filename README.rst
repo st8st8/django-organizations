@@ -3,32 +3,34 @@ django-organizations
 ====================
 
 :Info: Groups and multi-user account management
-:Version: 0.1.8
-:Status: beta
+:Version: 0.4.3
 :Author: Ben Lopatin (http://benlopatin.com)
 
-.. image:: https://secure.travis-ci.org/wellfire/django-organizations.png?branch=master
+.. image:: https://secure.travis-ci.org/bennylope/django-organizations.svg?branch=master
     :alt: Build Status
-    :target: http://travis-ci.org/wellfire/django-organizations
+    :target: http://travis-ci.org/bennylope/django-organizations
 
-.. image:: https://pypip.in/v/django-organizations/badge.png
+.. image:: https://pypip.in/v/django-organizations/badge.svg
     :alt: Current PyPI release
     :target: https://crate.io/packages/django-organizations
 
-.. image:: https://pypip.in/d/django-organizations/badge.png
+.. image:: https://pypip.in/d/django-organizations/badge.svg
     :alt: Download count
     :target: https://crate.io/packages/django-organizations
 
-Add user-managed, multi-user groups to your Django project. Use
-django-organizations whether your site needs organizations that function like
+Separate individual user identity from accounts and subscriptions. Django
+Organizations adds user-managed, multi-user groups to your Django project. Use
+Django Organizations whether your site needs organizations that function like
 social groups or multi-user account objects to provide account and subscription
 functionality beyond the individual user.
 
-* Relies on `django.contrib.auth` and does not add or require additional user
-  or authentication functionality
+* Works with your existing user model, whether
+  `django.contrib.auth` or a custom model. No additional user
+  or authentication functionality required.
 * Users can be belong to and own more than one organization (account, group)
-* Invitation and registration functionality is designed to be flexible to allow
-  you to integrate existing invitation and registration apps
+* Invitation and registration functionality works out of the box for many
+  situations and can be extended as need to fit specific requirements.
+* Start with the base models or use your own for greater customization.
 
 Documentation is on `Read the Docs
 <http://django-organizations.readthedocs.org/en/latest/index.html>`_
@@ -44,6 +46,19 @@ First add the application to your Python path. The easiest way is to use
 You should install by downloading the source and running::
 
     $ python setup.py install
+
+.. note::
+    If you are using Django<=1.4.10, or >=1.5.0,<1.5.5, you
+    will need to install an up-to-date version of the `six` package. Previous
+    Django versions included an older version of `six` with which Django
+    Organizations is incompatible.
+
+.. note::
+
+    If you are using South you must use 1.0. Django Organizations is
+    incompatible with earlier versions of South, as this project uses the
+    `south_migrations` folder for schema migrations in order to maintain Django
+    1.7 compatability.
 
 Configuring
 -----------
@@ -80,8 +95,6 @@ model name of your custom user model, following the procedure in Django 1.5::
 
     AUTH_USER_MODEL = 'myuserapp.MyUser'
 
-**This is still experimental and your user model's API should hew close to that
-of the `auth.User` class.**
 
 Usage Overview
 ==============
@@ -107,7 +120,7 @@ The underlying organizations API is simple::
 
     >>> chris = User.objects.get(username="chris")
     >>> soundgarden = create_organization(chris, "Soundgarden")
-    >>> soundgarden.is_user(chris)
+    >>> soundgarden.is_member(chris)
     True
     >>> soundgarden.is_admin(chris)
     True
@@ -120,14 +133,14 @@ The underlying organizations API is simple::
     >>> audioslave.add_user(tom, is_admin=True)
     <OrganizationUser: Tom Morello>
 
+Custom models
+-------------
 
-Overview
---------
-
-Each organization can have only one owner, however a site user can be a member
-of multiple organizations, or own multiple organizations. The OrganizationUser
-model servers as an intermediary between the `Organization` and the `Users` to
-allow this.
+Django-organizations can act as a base library (not installed in your project)
+and used to create unique organization model sets using custom tables. See the
+`Cooking with Django Organizations
+<http://django-organizations.readthedocs.org/en/latest/cookbook.html#advanced-customization>`_
+section in the documentation for advice on proceeding.
 
 Development & Contributing
 ==========================
@@ -145,19 +158,23 @@ for me and contributors should include:
 * Documentation
 * Ensuring all application text is translatable
 * Python 3 readiness
-* Configurable user model (a la Django 1.5's anticipated auth.User rewrite)
 
 Please use the project's issues tracker to report bugs, doc updates, or other
 requests/suggestions.
 
-Targets
--------
+Targets & testing
+-----------------
 
 The codebase is targeted at tested against:
 
 * Django 1.4.x against Python 2.6 and Python 2.7
 * Django 1.5.x against Python 2.6, Python 2.7, and Python 3.3
-* Django 1.6.x (beta) against Python 2.7 and Python 3.3
+* Django 1.6.x against Python 2.7 and Python 3.3
+
+To run the tests against all target environments, install `tox
+<https://testrun.org/tox/latest/>`_ and then execute the command:
+
+    tox
 
 Submitting
 ----------
@@ -172,12 +189,13 @@ reviewed and make it into the project:
   direction
 * Also please try to include `good commit log messages
   <http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html>`_.
-* Pull requests should include a quantity amount of code and commits that are
-  reasonable to review, are logically grouped, and based off clean feature
+* Pull requests should include an amount of code and commits that are
+  reasonable to review, are **logically grouped**, and based off clean feature
   branches.
 
-Code contributions are expected to pass in all three target environments, and
-pull requests should be made from branches with passing builds.
+Code contributions are expected to pass in all target environments, and
+pull requests should be made from branches with passing builds on `Travis
+CI <https://travis-ci.org/bennylope/django-organizations>`_.
 
 Project goals
 -------------
@@ -194,5 +212,5 @@ Etc.
 License
 =======
 
-Anyone is free to use or modify this software under ther terms of the BSD
+Anyone is free to use or modify this software under the terms of the BSD
 license.
