@@ -1,13 +1,40 @@
 {% extends "organizations_base.html" %}
 {% load url from future %}
 {% load org_tags %}
+{% load staticfiles %}
+{% load i18n %}
+
+{% block title %}{{ organization.name }}{% endblock %}
+
+{% block breadcrumbs %}
+    <ul class="breadcrumbs">
+        <li><a href="{% url "url_home" %}">{% trans "Home" %}</a></li>
+        <li><a href="{% url "organization_list" %}">{% trans "Groups" %}</a></li>
+        <li>{{ organization.name }}</li>
+    </ul>
+{% endblock %}
+
 {% block content %}
-<h1>{{ organization }}</h1>
-<ul>
-    <li><a href="{% url "organization_edit" organization.pk %}">Edit</a></li>
-    <li><a href="{% url "organization_delete" organization.pk %}">Delete</a></li>
-    <li><a href="{% url "organization_user_add" organization.pk %}">Add a member</a></li>
-</ul>
-{% organization_users organization %}
+<div class="col-holder">
+    <div class="col" style="width:64%">
+         <h1 class="blue top">{{ organization }}</h1>
+        <br />
+
+        {{ organization.description }}
+    </div>
+
+    <div class="col">
+        <div class="image-holder">
+            <img src="{{MEDIA_URL }}{{organization.logo }}" />
+        </div>
+        <a class="btn light-blue-btn" href="{% url "url_group_learning-line" organization.pk %}"><span>{% trans "learning line" %}</span></a>
+        <a class="btn green-btn" href="{% url "organization_user_list" organization.pk %}"><span>{% trans "members" %}</span></a>
+        {% if request.user.profile.is_brand_supervisor %}
+        <a class="btn red-btn" href="{% url "organization_delete" organization.pk %}"><span>{% trans "delete" %}</span></a>
+        <a class="btn orange-btn" href="{% url "organization_activities" organization.pk %}"><span>{% trans "activities" %}</span></a>
+        {% endif %}
+        <a class="btn blue-btn" href="{% url "url_send_group_message" organization.pk %}"><span>{% trans "message members" %}</span></a>
+    </div>
+</div>
 {% endblock %}
 

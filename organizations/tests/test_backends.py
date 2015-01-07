@@ -1,3 +1,4 @@
+from unittest import skip
 from django.core import mail
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User
@@ -124,6 +125,7 @@ class RegistrationTests(TestCase):
         self.assertEqual(1, len(mail.outbox)) # User is active
         mail.outbox = []
 
+    @skip("Not using django-registration")
     def test_urls(self):
         reverse('registration_register', kwargs={
             'user_id': self.pending_user.id,

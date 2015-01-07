@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.sites.models import Site
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.db.models import permalink, get_model
@@ -7,7 +8,8 @@ from django.utils.translation import ugettext_lazy as _
 from django_extensions.db.fields import AutoSlugField
 from django_extensions.db.models import TimeStampedModel
 from organizations.managers import OrgManager, ActiveOrgManager
-
+from markitup.fields import MarkupField
+from caching.base import CachingMixin, CachingManager, cached_method
 
 USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
 
@@ -24,7 +26,7 @@ def get_user_model():
     return klass
 
 
-class Organization(TimeStampedModel):
+class Organization(CachingMixin, TimeStampedModel):
     """
     The umbrella object with which users can be associated.
 
@@ -37,11 +39,19 @@ class Organization(TimeStampedModel):
     slug = AutoSlugField(max_length=200, blank=False, editable=True,
             populate_from='name', unique=True,
             help_text=_("The name in all lowercase, suitable for URL identification"))
+    description = MarkupField(blank=True, null=False, default="")
+    send_signup_message = models.BooleanField(default=True)
+    signup_message = models.TextField(default="You have been added to {0}.\nClick {1} for the group profile.",
+                                      null = True,
+                                      blank = True,
+                                      help_text="Message sent when user is added to group. Use {0} for the group name, and {1} for a link to the group.")
+    logo = models.ImageField(upload_to="group_logos", blank=True, null=True)
     users = models.ManyToManyField(USER_MODEL, through="OrganizationUser")
     is_active = models.BooleanField(default=True)
-
     objects = OrgManager()
     active = ActiveOrgManager()
+    is_pandi_club = models.BooleanField(default=False)
+
 
     class Meta:
         ordering = ['name']
@@ -49,6 +59,10 @@ class Organization(TimeStampedModel):
         verbose_name_plural = _("organizations")
 
     def __str__(self):
+        return u"{0}".format(self.name)
+
+
+    def __unicode__(self):
         return u"{0}".format(self.name)
 
     @permalink
@@ -100,9 +114,12 @@ class Organization(TimeStampedModel):
 
     def is_admin(self, user):
         return True if self.organization_users.filter(user=user, is_admin=True) else False
+        
+    def is_moderator(self, user):
+        return True if self.organization_users.filter(user=user, is_moderator=True) else False
 
 
-class OrganizationUser(TimeStampedModel):
+class OrganizationUser(CachingMixin, TimeStampedModel):
     """
     ManyToMany through field relating Users to Organizations.
 
@@ -118,6 +135,8 @@ class OrganizationUser(TimeStampedModel):
     organization = models.ForeignKey(Organization,
             related_name="organization_users")
     is_admin = models.BooleanField(default=False)
+    is_moderator = models.BooleanField(default=False)
+    objects = CachingManager()
 
     class Meta:
         ordering = ['organization', 'user']
@@ -128,6 +147,12 @@ class OrganizationUser(TimeStampedModel):
     def __str__(self):
         return u"{0} ({1})".format(self.name if self.user.is_active else
                 self.user.email, self.organization.name)
+
+
+    def __unicode__(self):
+        return u"{0} ({1})".format(self.name if self.user.is_active else
+                self.user.email, self.organization.name)
+
 
     def delete(self, using=None):
         """

@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from organizations.views import (OrganizationList, OrganizationDetail,
         OrganizationUpdate, OrganizationDelete, OrganizationCreate,
         OrganizationUserList, OrganizationUserDetail, OrganizationUserUpdate,
-        OrganizationUserCreate, OrganizationUserRemind, OrganizationUserDelete)
+        OrganizationUserCreate, OrganizationUserRemind, OrganizationUserDelete, OrganizationUserAddFromActivity, OrganizationBulkDelete, OrganizationUserAddFromBrand, OrganizationActivities, OrganizationDashboard, OrganizationDashboardActivity)
 
 
 urlpatterns = patterns('',
@@ -22,6 +22,12 @@ urlpatterns = patterns('',
     url(r'^(?P<organization_pk>[\d]+)/delete/$',
         view=login_required(OrganizationDelete.as_view()),
         name="organization_delete"),
+    url(r'^(?P<organization_pk>[\d]+)/dashboard/$',
+        view=login_required(OrganizationDashboard.as_view()),
+        name="organization_dashboard"),
+    url(r'^(?P<organization_pk>[\d]+)/dashboard/(?P<activity_url_title>.*)/activity/$',
+        view=login_required(OrganizationDashboardActivity.as_view()),
+        name="organization_dashboard_activity"),
 
     # Organization user URLs
     url(r'^(?P<organization_pk>[\d]+)/people/$',
@@ -42,4 +48,16 @@ urlpatterns = patterns('',
     url(r'^(?P<organization_pk>[\d]+)/people/(?P<user_pk>[\d]+)/delete/$',
         view=login_required(OrganizationUserDelete.as_view()),
         name="organization_user_delete"),
+    url(r'^(?P<organization_pk>[\d]+)/people/bulk-delete/$',
+        view=login_required(OrganizationBulkDelete.as_view()),
+        name="organization_user_bulk_delete"),
+    url(r'^(?P<organization_pk>[\d]+)/people/add_from_brand/$',
+        view=login_required(OrganizationUserAddFromBrand.as_view()),
+        name="organization_users_add_from_brand"),
+    url(r'^(?P<organization_pk>[\d]+)/people/add_from_activity/$',
+        view=login_required(OrganizationUserAddFromActivity.as_view()),
+        name="organization_users_add_from_activity"),
+    url(r'^(?P<organization_pk>[\d]+)/activities/$',
+        view=login_required(OrganizationActivities.as_view()),
+        name="organization_activities"),
 )

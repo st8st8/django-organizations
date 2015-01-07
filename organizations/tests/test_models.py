@@ -96,11 +96,11 @@ class OrgDeleteTests(TestCase):
     def test_delete_account(self):
         """Ensure Users are not deleted on the cascade"""
         self.assertEqual(3, OrganizationOwner.objects.all().count())
-        self.assertEqual(4, User.objects.all().count())
+        num_users_before = User.objects.all().count()
         scream = Organization.objects.get(name="Scream")
         scream.delete()
         self.assertEqual(2, OrganizationOwner.objects.all().count())
-        self.assertEqual(4, User.objects.all().count())
+        self.assertEqual(num_users_before, User.objects.all().count())
 
     def test_delete_orguser(self):
         """Ensure the user is not deleted on the cascade"""

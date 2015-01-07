@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.sites.models import get_current_site
 from django.utils.translation import ugettext_lazy as _
+from markitup.widgets import MarkItUpWidget
 
 from organizations.models import Organization, OrganizationUser, get_user_model
 from organizations.utils import create_organization
@@ -9,30 +10,25 @@ from organizations.backends import invitation_backend
 
 class OrganizationForm(forms.ModelForm):
     """Form class for updating Organizations"""
-    owner = forms.ModelChoiceField(OrganizationUser.objects.all())
+    #owner = forms.ModelChoiceField(OrganizationUser.objects.all())
+    description = forms.CharField(widget=MarkItUpWidget())
 
     def __init__(self, request, *args, **kwargs):
         self.request = request
         super(OrganizationForm, self).__init__(*args, **kwargs)
-        self.fields['owner'].queryset = self.instance.organization_users.filter(
-                is_admin=True, user__is_active=True)
-        self.fields['owner'].initial = self.instance.owner.organization_user
 
     class Meta:
         model = Organization
         exclude = ('users', 'is_active')
 
     def save(self, commit=True):
-        if self.instance.owner.organization_user != self.cleaned_data['owner']:
-            self.instance.owner.organization_user = self.cleaned_data['owner']
-            self.instance.owner.save()
         return super(OrganizationForm, self).save(commit=commit)
 
     def clean_owner(self):
         owner = self.cleaned_data['owner']
         if owner != self.instance.owner.organization_user:
             if self.request.user != self.instance.owner.organization_user.user:
-                raise forms.ValidationError(_("Only the organization owner can change ownerhip"))
+                raise forms.ValidationError(_("Only the organization owner can change ownership"))
         return owner
 
 
@@ -95,8 +91,10 @@ class OrganizationAddForm(forms.ModelForm):
     Form class for creating a new organization, complete with new owner, including a
     User instance, OrganizationUser instance, and OrganizationOwner instance.
     """
-    email = forms.EmailField(max_length=75,
-            help_text=_("The email address for the account owner"))
+    #email = forms.EmailField(max_length=75,
+#            help_text=_("The email address for the account owner"))
+    owner = forms.IntegerField()
+    description = forms.CharField(widget=MarkItUpWidget())
 
     def __init__(self, request, *args, **kwargs):
         self.request = request
@@ -104,7 +102,7 @@ class OrganizationAddForm(forms.ModelForm):
 
     class Meta:
         model = Organization
-        exclude = ('users', 'is_active')
+        exclude = ('users', 'is_active', 'site')
 
     def save(self, **kwargs):
         """
@@ -112,7 +110,7 @@ class OrganizationAddForm(forms.ModelForm):
         """
         is_active = True
         try:
-            user = get_user_model().objects.get(email=self.cleaned_data['email'])
+            user = get_user_model().objects.get(pk=self.cleaned_data['owner'])
         except get_user_model().DoesNotExist:
             user = invitation_backend().invite_by_email(
                     self.cleaned_data['email'],
@@ -120,8 +118,9 @@ class OrganizationAddForm(forms.ModelForm):
                         'organization': self.cleaned_data['name'],
                         'sender': self.request.user, 'created': True})
             is_active = False
+        print self.cleaned_data['logo']
         return create_organization(user, self.cleaned_data['name'],
-                self.cleaned_data['slug'], is_active=is_active)
+                self.cleaned_data['slug'], is_active=is_active, logo=self.cleaned_data['logo'], description=self.cleaned_data['description'])
 
 
 class SignUpForm(forms.Form):
