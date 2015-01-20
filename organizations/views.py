@@ -30,8 +30,8 @@ from .backends import invitation_backend, registration_backend
 from .forms import (OrganizationForm, OrganizationUserForm,
         OrganizationUserAddForm, OrganizationAddForm, SignUpForm)
 from .mixins import (OrganizationMixin, OrganizationUserMixin,
-        MembershipRequiredMixin, AdminRequiredMixin, OwnerRequiredMixin)
-from .models import Organization
+        MembershipRequiredMixin, AdminRequiredMixin, OwnerRequiredMixin, StaffRequiredMixin)
+from .models import Organization, OrganizationUser
 from .utils import create_organization
 from django.db.models import Q
 from datetime import datetime, timedelta
@@ -72,7 +72,7 @@ class BaseOrganizationDetail(OrganizationMixin, DetailView):
 class BaseOrganizationCreate(CreateView):
     model = Organization
     form_class = OrganizationAddForm
-    template_name = 'organizations/organization_form.html'
+    template_name = 'organizations/organization_add_form.html'
 
     def get_success_url(self):
         return reverse("organization_list")

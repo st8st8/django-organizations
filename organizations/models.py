@@ -5,6 +5,7 @@ from django.db import models
 from django.db.models import get_model
 from django.utils.importlib import import_module
 from django.utils.translation import ugettext_lazy as _
+from markitup.fields import MarkupField
 
 from .base import OrganizationBase, OrganizationUserBase, OrganizationOwnerBase
 from .signals import user_added, user_removed, owner_changed
@@ -56,6 +57,13 @@ class Organization(OrganizationBase, TimeStampedModel):
             help_text=_("The name in all lowercase, suitable for URL identification"))
 
     is_pandi_club = models.BooleanField(default=False)
+    description = MarkupField(blank=True, null=False, default="")
+    send_signup_message = models.BooleanField(default=True)
+    signup_message = models.TextField(default="You have been added to {0}.\nClick {1} for the group profile.",
+                                      null = True,
+                                      blank = True,
+                                      help_text="Message sent when user is added to group. Use {0} for the group name, and {1} for a link to the group.")
+    logo = models.ImageField(upload_to="group_logos", blank=True, null=True)
 
     class Meta(OrganizationBase.Meta):
         verbose_name = _("organization")
@@ -144,6 +152,7 @@ class Organization(OrganizationBase, TimeStampedModel):
 
 class OrganizationUser(OrganizationUserBase, TimeStampedModel):
     is_admin = models.BooleanField(default=False)
+    is_moderator = models.BooleanField(default=False)
 
     class Meta(OrganizationUserBase.Meta):
         verbose_name = _("organization user")
