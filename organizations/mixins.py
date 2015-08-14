@@ -53,8 +53,8 @@ class OrganizationUserMixin(OrganizationMixin):
         organization_pk = self.kwargs.get('organization_pk', None)
         user_pk = self.kwargs.get('user_pk', None)
         self.organization_user = get_object_or_404(
-            OrganizationUser.objects.select_related(),
-            user__pk=user_pk, organization__pk=organization_pk)
+                OrganizationUser.objects.select_related(),
+                user__pk=user_pk, organization__pk=organization_pk)
         return self.organization_user
 
 

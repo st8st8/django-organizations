@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import logging
 from datetime import datetime
 import calendar
@@ -47,13 +49,8 @@ class BaseOrganizationList(ListView):
     context_object_name = "organizations"
 
     def get_queryset(self):
-        qs = super(BaseOrganizationList,
-                   self).get_queryset().filter(users=self.request.user)
-
-        if not self.request.user.profile.is_brand_supervisor():
-            qs = qs.filter(Q(is_hidden=False) | Q(organization_users__user=self.request.user,
-                                                  organization_users__is_admin=True)).distinct()
-        return qs
+        return super(BaseOrganizationList,
+                self).get_queryset().filter(users=self.request.user)
 
 
 class BaseOrganizationDetail(OrganizationMixin, DetailView):

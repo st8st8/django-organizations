@@ -24,7 +24,6 @@ class Migration(migrations.Migration):
                 ('created', django_extensions.db.fields.CreationDateTimeField(default=django.utils.timezone.now, verbose_name='created', editable=False, blank=True)),
                 ('modified', django_extensions.db.fields.ModificationDateTimeField(default=django.utils.timezone.now, verbose_name='modified', editable=False, blank=True)),
                 ('slug', django_extensions.db.fields.AutoSlugField(populate_from=b'name', editable=False, max_length=200, blank=True, help_text='The name in all lowercase, suitable for URL identification', unique=True)),
-                ('is_pandi_club', models.BooleanField(default=False)),
             ],
             options={
                 'ordering': ['name'],
@@ -66,20 +65,18 @@ class Migration(migrations.Migration):
             },
             bases=(organizations.base.UnicodeMixin, models.Model),
         ),
-        migrations.AlterUniqueTogether(
-            name='organizationuser',
-            unique_together=set([('user', 'organization')]),
-        ),
         migrations.AddField(
             model_name='organizationowner',
             name='organization_user',
             field=models.OneToOneField(to='organizations.OrganizationUser'),
-            preserve_default=True,
         ),
         migrations.AddField(
             model_name='organization',
             name='users',
             field=models.ManyToManyField(related_name='organizations_organization', through='organizations.OrganizationUser', to=settings.AUTH_USER_MODEL),
-            preserve_default=True,
+        ),
+        migrations.AlterUniqueTogether(
+            name='organizationuser',
+            unique_together=set([('user', 'organization')]),
         ),
     ]

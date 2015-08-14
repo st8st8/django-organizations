@@ -3,6 +3,28 @@
 History
 =======
 
+0.5.3
+-----
+
+* Fixes migrations problem in build
+
+0.5.2
+-----
+
+* Fixes packaging bug
+
+0.5.1
+-----
+
+* Cleaned up installation instructions
+
+0.5.0
+-----
+
+* Drops testing support for Django 1.5 and Django 1.6
+* Adds native Django database migrations
+* Adds tested support for Django 1.7 and Django 1.8
+
 0.4.3
 -----
 

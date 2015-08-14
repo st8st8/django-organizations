@@ -15,6 +15,10 @@ The core of the application consists of three models:
 * An **organization owner**. This model links to an **organization user** who
   has rights over the life and death of the organization.
 
+You can allow users to invite other users to their organizations and register
+with organizations as well. This functionality is provided through "backend"
+interfaces so that you can customize this code or use arbitrary user
+registration systems.
 
 Installation
 ============
@@ -25,21 +29,29 @@ First add the application to your Python path. The easiest way is to use
     pip install django-organizations
 
 .. note::
-    If you are using Django<=1.4.10, or Django >=1.5.0,<1.5.5, you
-    will need to install an up-to-date version of the `six` package. Previous
-    Django versions included an older version of `six` with which Django
-    Organizations is incompatible.
+    If you are using Django<=1.4.10 you will need to install an up-to-date
+    version of the `six` package. Previous Django versions included an older
+    version of `six` with which Django Organizations is incompatible.
 
 .. note::
 
-    If you are using South you must use 1.0. Django Organizations is
+    If you are using South you must use 1.0+. Django Organizations is
     incompatible with earlier versions of South, as this project uses the
     `south_migrations` folder for schema migrations in order to maintain Django
     1.7 compatability.
 
+Upgrading Django for existing installations
+-------------------------------------------
+
+If you are upgrading the Django version of an existing deployment that
+deprecates South in favor of Django's native migrations, you will need to fake
+the migrations for Django Organizations (if you have installed the app
+directly, of course).
+
+Configuration
+=============
+
 Ensure that you have a user system in place to connect to your organizations.
-django-organizations will work with the `django.contrib.auth` package or custom
-user models (see configuration below).
 
 To install the default models add `organizations` to `INSTALLED_APPS` in your
 settings file.::
@@ -56,15 +68,6 @@ If however you want to use single-table customized organization models and/or
 custom organization user models, it may be best to treat Django organizations
 as a library and *not* install it in your Django project. See the
 :ref:`cookbook-advanced` section.
-
-Configuration
-=============
-
-You can specify a different model in your settings using the
-`AUTH_USER_MODEL` setting `described in the docs
-<https://docs.djangoproject.com/en/1.5/ref/settings/#std:setting-AUTH_USER_MODEL>`_.
-You can use this setting to configure a custom user model or to refer to a
-profile model if your project is using Django 1.4.
 
 URLs
 ----

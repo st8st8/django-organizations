@@ -3,7 +3,7 @@ django-organizations
 ====================
 
 :Info: Groups and multi-user account management
-:Version: 0.4.3
+:Version: 0.5.1
 :Author: Ben Lopatin (http://benlopatin.com)
 
 .. image:: https://secure.travis-ci.org/bennylope/django-organizations.svg?branch=master
@@ -43,22 +43,24 @@ First add the application to your Python path. The easiest way is to use
 
     pip install django-organizations
 
-You should install by downloading the source and running::
+You can also install by downloading the source and running::
 
     $ python setup.py install
 
-.. note::
-    If you are using Django<=1.4.10, or >=1.5.0,<1.5.5, you
-    will need to install an up-to-date version of the `six` package. Previous
-    Django versions included an older version of `six` with which Django
-    Organizations is incompatible.
+By default you will need to install `django-extensions` or comparable libraries
+if you plan on adding Django Organizations as an installed app to your Django
+project. See below on configuring.
 
 .. note::
+    If you are using Django<=1.4.10, you will need to install an up-to-date version
+    of the `six` package. Previous Django versions included an older version of
+    `six` with which Django Organizations is incompatible.
 
-    If you are using South you must use 1.0. Django Organizations is
+.. note::
+    If you are using South you must use 1.0+. Django Organizations is
     incompatible with earlier versions of South, as this project uses the
-    `south_migrations` folder for schema migrations in order to maintain Django
-    1.7 compatability.
+    `south_migrations` folder for South schema migrations in order to maintain
+    Django native migrations compatability.
 
 Configuring
 -----------
@@ -83,17 +85,35 @@ main application URL conf as well as your chosen invitation backend URLs::
         url(r'^invitations/', include(invitation_backend().get_urls())),
     )
 
+Timestamped models and auto slug fields
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The standard way of using Django Organizations is to use it as an installed app
+in your Django project. Django Organizations will need to use a
+`TimeStampedModel` and an auto slug field which are not included. By default it
+will try to import these from django-extensions, but you can configure your own
+in settings. The defaults::
+
+    ORGS_SLUGFIELD = 'django_extensions.db.fields.AutoSlugField'
+    ORGS_TIMESTAMPED_MODEL = 'django_extensions.db.models.TimeStampedModel'
+
+Alternatives::
+
+    ORGS_SLUGFIELD = 'autoslug.fields.AutoSlugField'
+    ORGS_TIMESTAMPED_MODEL = 'model_utils.models.TimeStampedModels'
+
+- `django-extensions <http://django-extensions.readthedocs.org/en/latest/>`_
+- `Django Autoslug <https://pythonhosted.org/django-autoslug/>`_
+- `django-model-utils <https://django-model-utils.readthedocs.org/en/latest/>`_
+
+Registration & invitation backends
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 You can specify a different invitation backend in your project settings, and
 the `invitation_backend` function will provide the URLs defined by that
 backend::
 
     ORGS_INVITATION_BACKEND = 'myapp.backends.MyInvitationBackend'
-
-There is also a lightly tested way to use your own user model, rather than the
-default `auth.User` model. Set the `AUTH_USER_MODEL` setting to the dotted
-model name of your custom user model, following the procedure in Django 1.5::
-
-    AUTH_USER_MODEL = 'myuserapp.MyUser'
 
 
 Usage Overview
@@ -117,9 +137,9 @@ There are three models:
   easy to enforce ownership from within the organization's membership.
 
 The underlying organizations API is simple::
-
+    >>> from organizations.utils import create_organization
     >>> chris = User.objects.get(username="chris")
-    >>> soundgarden = create_organization(chris, "Soundgarden")
+    >>> soundgarden = create_organization(chris, "Soundgarden", org_user_defaults={'is_admin': True})
     >>> soundgarden.is_member(chris)
     True
     >>> soundgarden.is_admin(chris)
@@ -167,9 +187,9 @@ Targets & testing
 
 The codebase is targeted at tested against:
 
-* Django 1.4.x against Python 2.6 and Python 2.7
-* Django 1.5.x against Python 2.6, Python 2.7, and Python 3.3
-* Django 1.6.x against Python 2.7 and Python 3.3
+* Django 1.4.x against Python 2.7
+* Django 1.7.x against Python 2.7, 3.3, 3.4
+* Django 1.8.x against Python 2.7, 3.3, 3.4
 
 To run the tests against all target environments, install `tox
 <https://testrun.org/tox/latest/>`_ and then execute the command:
@@ -184,7 +204,7 @@ reviewed and make it into the project:
 
 * Ensure they match the project goals and are sufficiently generalized
 * Please try to follow `Django coding style
-  <https://docs.djangoproject.com/en/1.4/internals/contributing/writing-code/coding-style/>`_.
+  <https://docs.djangoproject.com/en/1.8/internals/contributing/writing-code/coding-style/>`_.
   The code base style isn't all up to par, but I'd like it to move in that
   direction
 * Also please try to include `good commit log messages
