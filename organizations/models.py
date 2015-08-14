@@ -1,5 +1,6 @@
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
+from django.contrib.sites.models import Site
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import get_model
@@ -10,26 +11,26 @@ from markitup.fields import MarkupField
 from .base import OrganizationBase, OrganizationUserBase, OrganizationOwnerBase
 from .signals import user_added, user_removed, owner_changed
 
+
 USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
 ORGS_SLUGFIELD = getattr(settings, 'ORGS_SLUGFIELD',
-        'django_extensions.db.fields.AutoSlugField')
+                         'django_extensions.db.fields.AutoSlugField')
 ORGS_TIMESTAMPED_MODEL = getattr(settings, 'ORGS_TIMESTAMPED_MODEL',
-        'django_extensions.db.models.TimeStampedModel')
-
+                                 'django_extensions.db.models.TimeStampedModel')
 
 try:
     module, klass = ORGS_SLUGFIELD.rsplit('.', 1)
     SlugField = getattr(import_module(module), klass)
 except:
     raise ImproperlyConfigured("Your SlugField class, {0},"
-            " is improperly defined".format(ORGS_SLUGFIELD))
+                               " is improperly defined".format(ORGS_SLUGFIELD))
 
 try:
     module, klass = ORGS_TIMESTAMPED_MODEL.rsplit('.', 1)
     TimeStampedModel = getattr(import_module(module), klass)
 except:
     raise ImproperlyConfigured("Your TimeStampedBaseModel class, {0},"
-            " is improperly defined".format(ORGS_TIMESTAMPED_MODEL))
+                               " is improperly defined".format(ORGS_TIMESTAMPED_MODEL))
 
 
 def get_user_model():
@@ -41,10 +42,10 @@ def get_user_model():
         klass = get_model(USER_MODEL.split('.')[0], USER_MODEL.split('.')[1])
     except:
         raise ImproperlyConfigured("Your AUTH_USER_MODEL class '{0}'"
-                " is improperly defined".format(USER_MODEL))
+                                   " is improperly defined".format(USER_MODEL))
     if klass is None:
         raise ImproperlyConfigured("Your AUTH_USER_MODEL class '{0}'"
-                " is not installed".format(USER_MODEL))
+                                   " is not installed".format(USER_MODEL))
     return klass
 
 
@@ -53,17 +54,26 @@ class Organization(OrganizationBase, TimeStampedModel):
     Default Organization model.
     """
     slug = SlugField(max_length=200, blank=False, editable=True,
-            populate_from='name', unique=True,
-            help_text=_("The name in all lowercase, suitable for URL identification"))
+                     populate_from='name', unique=True,
+                     help_text=_(u"The name in all lowercase, suitable for URL identification"))
 
-    is_pandi_club = models.BooleanField(default=False)
+    is_pandi_club = models.BooleanField(default=False,
+                                        help_text=u"This group represents a club of P&I insurers")
     description = MarkupField(blank=True, null=False, default="")
     send_signup_message = models.BooleanField(default=True)
-    signup_message = models.TextField(default="You have been added to {0}.\nClick {1} for the group profile.",
-                                      null = True,
-                                      blank = True,
-                                      help_text="Message sent when user is added to group. Use {0} for the group name, and {1} for a link to the group.")
+    signup_message = models.TextField(default=u"You have been added to {0}.\nClick {1} for the group profile.",
+                                      null=True,
+                                      blank=True,
+                                      help_text=u"Message sent when user is added to group. "
+                                                u"Use {0} for the group name, and {1} for a link to the group.")
     logo = models.ImageField(upload_to="group_logos", blank=True, null=True)
+    site = models.ForeignKey(Site, null=True, blank=True,
+                             help_text=u"Tie this group explicitly to a brand so it is not visible outside "
+                                       u"this brand and users outside this brand cannot join")
+    is_hidden = models.BooleanField(default=False,
+                                    help_text=u"Users in hidden groups are not aware that they are "
+                                              u"in the group, and cannot see the group's properties "
+                                              u"or members.")
 
     class Meta(OrganizationBase.Meta):
         verbose_name = _("organization")
@@ -84,12 +94,16 @@ class Organization(OrganizationBase, TimeStampedModel):
         if users_count == 0:
             is_admin = True
         # TODO get specific org user?
+        if self.site_profile:
+            if self.site != user.profile.site_registered:
+                raise PermissionDenied(u"Users not registered to {0} cannot join this group"
+                                       .format(self.site.domain))
         org_user = OrganizationUser.objects.create(user=user,
-                organization=self, is_admin=is_admin)
+                                                   organization=self, is_admin=is_admin)
         if users_count == 0:
             # TODO get specific org user?
             OrganizationOwner.objects.create(organization=self,
-                    organization_user=org_user)
+                                             organization_user=org_user)
 
         # User added signal
         user_added.send(sender=self, user=user)
@@ -124,11 +138,11 @@ class Organization(OrganizationBase, TimeStampedModel):
             is_admin = True
 
         org_user, created = OrganizationUser.objects.get_or_create(
-                organization=self, user=user, defaults={'is_admin': is_admin})
+            organization=self, user=user, defaults={'is_admin': is_admin})
 
         if users_count == 0:
             OrganizationOwner.objects.create(organization=self,
-                    organization_user=org_user)
+                                             organization_user=org_user)
 
         if created:
             # User added signal
@@ -151,8 +165,10 @@ class Organization(OrganizationBase, TimeStampedModel):
 
 
 class OrganizationUser(OrganizationUserBase, TimeStampedModel):
-    is_admin = models.BooleanField(default=False)
-    is_moderator = models.BooleanField(default=False)
+    is_admin = models.BooleanField(default=False,
+                                   help_text=u"This user can manage group members and change group details")
+    is_moderator = models.BooleanField(default=False,
+                                       help_text=u"This is not used.")
 
     class Meta(OrganizationUserBase.Meta):
         verbose_name = _("organization user")
@@ -160,7 +176,7 @@ class OrganizationUser(OrganizationUserBase, TimeStampedModel):
 
     def __unicode__(self):
         return u"{0} ({1})".format(self.name if self.user.is_active else
-                self.user.email, self.organization.name)
+                                   self.user.email, self.organization.name)
 
     def delete(self, using=None):
         """
@@ -170,10 +186,11 @@ class OrganizationUser(OrganizationUserBase, TimeStampedModel):
         If there is no owner then the deletion should proceed.
         """
         from organizations.exceptions import OwnershipRequired
+
         try:
             if self.organization.owner.organization_user.id == self.id:
                 raise OwnershipRequired(_("Cannot delete organization owner "
-                    "before organization or transferring ownership."))
+                                          "before organization or transferring ownership."))
         # TODO This line presumes that OrgOwner model can't be modified
         except OrganizationOwner.DoesNotExist:
             pass
@@ -185,7 +202,6 @@ class OrganizationUser(OrganizationUserBase, TimeStampedModel):
 
 
 class OrganizationOwner(OrganizationOwnerBase, TimeStampedModel):
-
     class Meta:
         verbose_name = _("organization owner")
         verbose_name_plural = _("organization owners")
@@ -202,6 +218,7 @@ class OrganizationOwner(OrganizationOwnerBase, TimeStampedModel):
 
         """
         from organizations.exceptions import OrganizationMismatch
+
         if self.organization_user.organization.pk != self.organization.pk:
             raise OrganizationMismatch
         else:

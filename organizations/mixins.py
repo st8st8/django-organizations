@@ -1,3 +1,4 @@
+from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.utils.translation import ugettext_lazy as _
@@ -24,6 +25,7 @@ class OrganizationMixin(object):
         organization_pk = self.kwargs.get('organization_pk', None)
         self.organization = get_object_or_404(self.get_org_model(), pk=organization_pk)
         return self.organization
+
     get_organization = get_object  # Now available when `get_object` is overridden
 
 
@@ -39,7 +41,7 @@ class OrganizationUserMixin(OrganizationMixin):
     def get_context_data(self, **kwargs):
         kwargs = super(OrganizationUserMixin, self).get_context_data(**kwargs)
         kwargs.update({self.org_user_context_name: self.object,
-            self.org_context_name: self.object.organization})
+                       self.org_context_name: self.object.organization})
         return kwargs
 
     def get_object(self):
@@ -51,8 +53,8 @@ class OrganizationUserMixin(OrganizationMixin):
         organization_pk = self.kwargs.get('organization_pk', None)
         user_pk = self.kwargs.get('user_pk', None)
         self.organization_user = get_object_or_404(
-                OrganizationUser.objects.select_related(),
-                user__pk=user_pk, organization__pk=organization_pk)
+            OrganizationUser.objects.select_related(),
+            user__pk=user_pk, organization__pk=organization_pk)
         return self.organization_user
 
 
@@ -65,10 +67,10 @@ class MembershipRequiredMixin(object):
         self.kwargs = kwargs
         self.organization = self.get_organization()
         if not self.organization.is_member(request.user) and not \
-                    request.user.is_superuser:
+                request.user.is_superuser:
             return HttpResponseForbidden(_("Wrong organization"))
         return super(MembershipRequiredMixin, self).dispatch(request, *args,
-                **kwargs)
+                                                             **kwargs)
 
 
 class AdminRequiredMixin(object):
@@ -80,10 +82,10 @@ class AdminRequiredMixin(object):
         self.kwargs = kwargs
         self.organization = self.get_organization()
         if not self.organization.is_admin(request.user) and not \
-                    request.user.is_superuser:
+                request.user.is_superuser:
             return HttpResponseForbidden(_("Sorry, admins only"))
         return super(AdminRequiredMixin, self).dispatch(request, *args,
-                **kwargs)
+                                                        **kwargs)
 
 
 class StaffRequiredMixin(object):
@@ -95,10 +97,10 @@ class StaffRequiredMixin(object):
         self.kwargs = kwargs
         self.organization = self.get_organization()
         if not self.organization.is_admin(request.user) and not \
-                    request.user.is_staff:
+                request.user.is_staff:
             raise PermissionDenied
         return super(StaffRequiredMixin, self).dispatch(request, *args,
-                **kwargs)
+                                                        **kwargs)
 
 
 class OwnerRequiredMixin(object):
@@ -113,4 +115,4 @@ class OwnerRequiredMixin(object):
                 and not request.user.is_superuser:
             return HttpResponseForbidden(_("You are not the organization owner"))
         return super(OwnerRequiredMixin, self).dispatch(request, *args,
-                **kwargs)
+                                                        **kwargs)

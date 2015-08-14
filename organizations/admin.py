@@ -10,13 +10,15 @@ class OwnerInline(admin.StackedInline):
 
 class OrganizationAdmin(admin.ModelAdmin):
     inlines = [OwnerInline]
-    list_display = ['name', 'is_active']
+    list_display = ['name', 'is_active', 'is_hidden']
     prepopulated_fields = {"slug": ("name",)}
+    search_fields = ('name',)
 
 
 class OrganizationUserAdmin(admin.ModelAdmin):
     list_display = ['user', 'organization', 'is_admin']
     raw_id_fields = ('user', 'organization')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'organization__name')
 
 
 class OrganizationOwnerAdmin(admin.ModelAdmin):

@@ -1,8 +1,8 @@
 from .models import Organization
 
 
-def create_organization(user, name, slug=None, is_active=None,
-        org_defaults=None, org_user_defaults=None, **kwargs):
+def create_organization(user, name, slug=None, is_active=None, site=None,
+                        org_defaults=None, org_user_defaults=None, **kwargs):
     """
     Returns a new organization, also creating an initial organization user who
     is the owner.
@@ -30,13 +30,15 @@ def create_organization(user, name, slug=None, is_active=None,
         org_defaults.update({'slug': slug})
     if is_active is not None:
         org_defaults.update({'is_active': is_active})
+    if site is not None:
+        org_defaults.update({'site': site})
 
     org_kwargs = dict(org_defaults.items() + kwargs.items())
     organization = org_model.objects.create(name=name, **org_kwargs)
     new_user = org_user_model.objects.create(organization=organization,
-            user=user, is_moderator=True, is_admin=True, **org_user_defaults)
+                                             user=user, is_moderator=True, is_admin=True, **org_user_defaults)
     org_owner_model.objects.create(organization=organization,
-            organization_user=new_user)
+                                   organization_user=new_user)
     return organization
 
 

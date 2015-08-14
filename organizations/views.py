@@ -1,3 +1,8 @@
+import logging
+from datetime import datetime
+import calendar
+import tempfile
+
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.sites.models import get_current_site
@@ -6,40 +11,34 @@ from pure_pagination import Paginator, PageNotAnInteger
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
 from django.http import Http404, HttpResponse
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
 from django.template import RequestContext
-from django.utils.translation import ugettext as _, ugettext
+from django.utils.translation import ugettext
 from django.views.generic import (ListView, DetailView, UpdateView, CreateView,
                                   DeleteView, FormView, TemplateView)
-from guardian.shortcuts import get_objects_for_organization, assign_perm, remove_perm, get_objects_for_user
-from guardian.utils import get_403_or_None
-from mycoracle.forms import ActivityAndUsersForm, AdvancedModelMultipleChoiceField, BrandUsersForm
-from mycoracle.models import ActivityProfile, Site, MyCoracleUserProfile
-from mycoracle.utils import get_users_with_permission, DefaultFormatter
-from mycoracle import utils
-from mycoracle import statistics
-from mycoracle import utils
-from mycoracle import forms
-from mycoracle.utils import get_users_with_permission
 import inject
-import logging
 from pymongo.database import Database
-from TinCanApp.tincandb import TinCanActivityProfile
-
-from .backends import invitation_backend, registration_backend
-from .forms import (OrganizationForm, OrganizationUserForm,
-        OrganizationUserAddForm, OrganizationAddForm, SignUpForm)
-from .mixins import (OrganizationMixin, OrganizationUserMixin,
-        MembershipRequiredMixin, AdminRequiredMixin, OwnerRequiredMixin, StaffRequiredMixin)
-from .models import Organization, OrganizationUser
-from .utils import create_organization
 from django.db.models import Q
-from datetime import datetime, timedelta
 from django.utils.timezone import utc
 from dateutil.relativedelta import relativedelta
 from django.utils.translation import ugettext as _
-import calendar
-import tempfile
+
+from guardian.shortcuts import get_objects_for_organization, assign_perm, remove_perm, get_objects_for_user
+from guardian.utils import get_403_or_None
+from mycoracle.forms import ActivityAndUsersForm, AdvancedModelMultipleChoiceField, BrandUsersForm
+from mycoracle.models import ActivityProfile, Site
+from mycoracle.utils import DefaultFormatter
+from mycoracle import utils
+from mycoracle import forms
+from mycoracle.utils import get_users_with_permission
+from TinCanApp.tincandb import TinCanActivityProfile
+from .backends import invitation_backend, registration_backend
+from .forms import (OrganizationForm, OrganizationUserForm,
+                    OrganizationUserAddForm, OrganizationAddForm, SignUpForm)
+from .mixins import (OrganizationMixin, OrganizationUserMixin,
+                     MembershipRequiredMixin, AdminRequiredMixin, OwnerRequiredMixin, StaffRequiredMixin)
+from .models import Organization, OrganizationUser
+from .utils import create_organization
 
 
 class BaseOrganizationList(ListView):
@@ -48,8 +47,13 @@ class BaseOrganizationList(ListView):
     context_object_name = "organizations"
 
     def get_queryset(self):
-        return super(BaseOrganizationList,
-                self).get_queryset().filter(users=self.request.user)
+        qs = super(BaseOrganizationList,
+                   self).get_queryset().filter(users=self.request.user)
+
+        if not self.request.user.profile.is_brand_supervisor():
+            qs = qs.filter(Q(is_hidden=False) | Q(organization_users__user=self.request.user,
+                                                  organization_users__is_admin=True)).distinct()
+        return qs
 
 
 class BaseOrganizationDetail(OrganizationMixin, DetailView):
@@ -57,6 +61,7 @@ class BaseOrganizationDetail(OrganizationMixin, DetailView):
         context = super(BaseOrganizationDetail, self).get_context_data(**kwargs)
         context['organization_users'] = self.organization.organization_users.all()
         context['organization'] = self.organization
+        context["is_admin"] = self.organization.is_admin(self.request.user)
 
         # Superusers can get here without having an OrganisationUser
         context['this_organization_user'] = None
@@ -119,6 +124,10 @@ class BaseOrganizationUserList(OrganizationMixin, ListView):
                 Q(user__first_name__icontains=kwargs["first_name"]) | Q(user__last_name__icontains=kwargs["last_name"]))
         else:
             self.object_list = self.organization.organization_users.all()
+
+        if not (self.request.user.profile.is_brand_supervisor() or self.organization.is_admin(self.request.user)):
+            self.object_list = self.object_list.filter(Q(organization__is_hidden=False) | Q(user=self.request.user))
+
         self.object_list = self.object_list.order_by("user__first_name")
         p = Paginator(self.object_list, 40).page(page)
         self.object_list = p.object_list
@@ -126,7 +135,10 @@ class BaseOrganizationUserList(OrganizationMixin, ListView):
                                         organization_users=self.object_list,
                                         organization=self.organization,
                                         pager=p)
+
         context["can_add"] = request.user.profile.is_brand_supervisor()
+        context["can_remove"] = self.organization.is_admin(self.request.user)
+
         context["search_textbox"] = forms.UsersSearchForm()
         return self.render_to_response(context)
 
@@ -141,12 +153,12 @@ class BaseOrganizationUserCreate(OrganizationMixin, CreateView):
 
     def get_success_url(self):
         return reverse('organization_user_list',
-                kwargs={'organization_pk': self.object.organization.pk})
+                       kwargs={'organization_pk': self.object.organization.pk})
 
     def get_form_kwargs(self):
         kwargs = super(BaseOrganizationUserCreate, self).get_form_kwargs()
         kwargs.update({'organization': self.organization,
-            'request': self.request})
+                       'request': self.request})
         return kwargs
 
     def get(self, request, *args, **kwargs):
@@ -171,8 +183,8 @@ class BaseOrganizationUserRemind(OrganizationUserMixin, DetailView):
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         invitation_backend().send_reminder(self.object.user,
-                **{'domain': get_current_site(self.request),
-                    'organization': self.organization, 'sender': request.user})
+                                           **{'domain': get_current_site(self.request),
+                                              'organization': self.organization, 'sender': request.user})
         return redirect(self.object)
 
 
@@ -183,7 +195,7 @@ class BaseOrganizationUserUpdate(OrganizationUserMixin, UpdateView):
 class BaseOrganizationUserDelete(OrganizationUserMixin, DeleteView):
     def get_success_url(self):
         return reverse('organization_user_list',
-                kwargs={'organization_pk': self.object.organization.pk})
+                       kwargs={'organization_pk': self.object.organization.pk})
 
 
 class OrganizationSignup(FormView):
@@ -203,7 +215,7 @@ class OrganizationSignup(FormView):
         if request.user.is_authenticated():
             return redirect('organization_add')
         return super(OrganizationSignup, self).dispatch(request, *args,
-                **kwargs)
+                                                        **kwargs)
 
     def get_success_url(self):
         if hasattr(self, 'success_url'):
@@ -215,7 +227,7 @@ class OrganizationSignup(FormView):
         """
         user = self.backend.register_by_email(form.cleaned_data['email'])
         create_organization(user=user, name=form.cleaned_data['name'],
-                slug=form.cleaned_data['slug'], is_active=False)
+                            slug=form.cleaned_data['slug'], is_active=False)
         return redirect(self.get_success_url())
 
 
@@ -251,7 +263,7 @@ class OrganizationBulkDelete(StaffRequiredMixin, OrganizationMixin, TemplateView
 
     def get(self, request, *args, **kwargs):
         if not request.session.get("myc_organisations_users_to_delete"):
-            return redirect(reverse("organization_user_list", args=(self.organization.pk)))
+            return redirect(reverse("organization_user_list", args=(self.organization.pk,)))
         return super(OrganizationBulkDelete, self).get(request, args, kwargs)
 
     def post(self, request, *args, **kwargs):
@@ -331,7 +343,7 @@ class OrganizationUserAddFromActivity(AdminRequiredMixin, OrganizationMixin, Tem
             form.fields["users"] = AdvancedModelMultipleChoiceField(
                 queryset=p.object_list)
             # for uop in form.fields["users"]:
-            #   if self.organization.is_member(uop.user):
+            # if self.organization.is_member(uop.user):
             #      pass
             context = self.get_context_data()
             context["pager"] = p
@@ -359,7 +371,10 @@ class OrganizationUserAddFromActivity(AdminRequiredMixin, OrganizationMixin, Tem
 
             for u in form["users"].value():
                 try:
-                    OrganizationUser.objects.create(user_id=int(u), organization=self.organization)
+                    user = User.objects.get(int(u))
+                    self.organization.add_user(user)
+                except User.DoesNotExist:
+                    messages.error(request, _(u"This user ({0}) does not exist".format(u)))
                 except IntegrityError:
                     pass
             return redirect(reverse("organization_user_list", args=(self.organization.id,)))
@@ -399,7 +414,6 @@ class OrganizationUserAddFromBrand(StaffRequiredMixin, OrganizationMixin, Templa
             else:
                 q = User.objects.filter(~Q(pk__in=current_users), is_active=True,
                                         profile__site_registered=get_current_site(request))
-                print current_users
         else:
             if "first_name" in kwargs and "last_name" in kwargs:
                 q = User.objects.filter(~Q(pk__in=current_users), Q(first_name__icontains=kwargs["first_name"]) | Q(
@@ -413,7 +427,7 @@ class OrganizationUserAddFromBrand(StaffRequiredMixin, OrganizationMixin, Templa
         form.fields["users"] = AdvancedModelMultipleChoiceField(
             queryset=p.object_list)
         # for uop in form.fields["users"]:
-        #   if self.organization.is_member(uop.user):
+        # if self.organization.is_member(uop.user):
         #      pass
         context = self.get_context_data()
         context["pager"] = p
@@ -440,16 +454,19 @@ class OrganizationUserAddFromBrand(StaffRequiredMixin, OrganizationMixin, Templa
 
             for u in form["users"].value():
                 try:
-                    OrganizationUser.objects.create(user_id=int(u), organization=self.organization)
+                    user = User.objects.get(int(u))
+                    self.organization.add_user(user)
                     url = reverse("organization_detail", kwargs={"organization_pk": self.organization.pk})
-                    if self.organization.send_signup_message:
+                    if self.organization.send_signup_message and not self.organization.is_hidden:
                         utils.learning_line_post_message(request.user, User.objects.get(pk=int(u)),
                                                          DefaultFormatter().format(self.organization.signup_message,
                                                                                    self.organization.name,
                                                                                    "http://%s%s" % (
                                                                                        request.META["HTTP_HOST"], url)))
-                except IntegrityError:
-                    pass
+                except IntegrityError as ie:
+                    messages.warning(request, ie.message)
+                except User.DoesNotExist:
+                    messages.error(request, _(u"This user ({0}) does not exist".format(u)))
             return redirect(reverse("organization_user_list", args=(self.organization.id,)))
 
 
@@ -531,7 +548,9 @@ class OrganizationDashboard(StaffRequiredMixin, OrganizationMixin, TemplateView)
         )
 
         if len(moddables) == 0:
-            raise PermissionDenied
+            messages.warning(request, _("There are no activities to moderate"))
+            return redirect(reverse("organization_detail", args=(self.organization.pk,)))
+
         self.context["acts"] = list()
         organization_users = OrganizationUser.objects.filter(organization_id=kwargs["organization_pk"])
         users_in_group = []
@@ -597,7 +616,7 @@ class OrganizationDashboardActivity(TemplateView):
         except OrganizationUser.DoesNotExist:
             return get_403_or_None(request, "administer_activity", return_403=True)
         if (request.user.is_superuser
-            or request.user.profile.is_supervisor
+            or request.user.profile.is_brand_supervisor()
             or request.user.has_perm("administer_activity", activityprofile)
             or organization_user.is_moderator):
             cansee = True
@@ -793,7 +812,7 @@ class OrganizationDashboardActivity(TemplateView):
                 data["chartdata5"]["y1"] = ydata[2]
             if any(ydata[3]):
                 data["chartdata6"]["y1"] = ydata[3]
-                
+
             pagestats = utils.get_number_stmts_activity_page(activityprofile, organisation=organization, brand=brand)
             data["chartdata7"]["x"] = [stat[0]["name"] for stat in pagestats]
             data["chartdata7"]["y1"] = [stat[1] for stat in pagestats]

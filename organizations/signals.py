@@ -6,3 +6,4 @@ user_removed = django.dispatch.Signal(**user_kwargs)
 
 owner_kwargs = {"providing_args": ["old", "new"]}
 owner_changed = django.dispatch.Signal(**owner_kwargs)
+

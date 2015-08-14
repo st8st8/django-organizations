@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models.fields import FieldDoesNotExist
 from django.db.models.base import ModelBase
+
 try:
     import six
 except ImportError:
@@ -86,9 +87,11 @@ class OrgMeta(ModelBase):
             cls.module_registry[module]['OrgModel']._meta.get_field("users")
         except FieldDoesNotExist:
             cls.module_registry[module]['OrgModel'].add_to_class("users",
-                models.ManyToManyField(USER_MODEL,
-                        through=cls.module_registry[module]['OrgUserModel'].__name__,
-                        related_name="%(app_label)s_%(class)s"))
+                                                                 models.ManyToManyField(USER_MODEL,
+                                                                                        through=
+                                                                                        cls.module_registry[module][
+                                                                                            'OrgUserModel'].__name__,
+                                                                                        related_name="%(app_label)s_%(class)s"))
 
     def update_org_users(cls, module):
         """
@@ -99,13 +102,15 @@ class OrgMeta(ModelBase):
             cls.module_registry[module]['OrgUserModel']._meta.get_field("user")
         except FieldDoesNotExist:
             cls.module_registry[module]['OrgUserModel'].add_to_class("user",
-                models.ForeignKey(USER_MODEL, related_name="%(app_label)s_%(class)s"))
+                                                                     models.ForeignKey(USER_MODEL,
+                                                                                       related_name="%(app_label)s_%(class)s"))
         try:
             cls.module_registry[module]['OrgUserModel']._meta.get_field("organization")
         except FieldDoesNotExist:
             cls.module_registry[module]['OrgUserModel'].add_to_class("organization",
-                models.ForeignKey(cls.module_registry[module]['OrgModel'],
-                        related_name="organization_users"))
+                                                                     models.ForeignKey(
+                                                                         cls.module_registry[module]['OrgModel'],
+                                                                         related_name="organization_users"))
 
     def update_org_owner(cls, module):
         """
@@ -115,13 +120,15 @@ class OrgMeta(ModelBase):
             cls.module_registry[module]['OrgOwnerModel']._meta.get_field("organization_user")
         except FieldDoesNotExist:
             cls.module_registry[module]['OrgOwnerModel'].add_to_class("organization_user",
-                models.OneToOneField(cls.module_registry[module]['OrgUserModel']))
+                                                                      models.OneToOneField(
+                                                                          cls.module_registry[module]['OrgUserModel']))
         try:
             cls.module_registry[module]['OrgOwnerModel']._meta.get_field("organization")
         except FieldDoesNotExist:
             cls.module_registry[module]['OrgOwnerModel'].add_to_class("organization",
-                models.OneToOneField(cls.module_registry[module]['OrgModel'],
-                        related_name="owner"))
+                                                                      models.OneToOneField(
+                                                                          cls.module_registry[module]['OrgModel'],
+                                                                          related_name="owner"))
 
 
 class OrganizationBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
@@ -133,7 +140,7 @@ class OrganizationBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
     """
 
     name = models.CharField(max_length=200,
-            help_text=_("The name of the organization"))
+                            help_text=_("The name of the organization"))
     is_active = models.BooleanField(default=True)
 
     objects = OrgManager()
@@ -155,7 +162,7 @@ class OrganizationBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
         model classes.
         """
         return "{0}_{1}".format(self._meta.app_label.lower(),
-                self.__class__.__name__.lower())
+            self.__class__.__name__.lower())
 
     def is_member(self, user):
         return True if user in self.users.all() else False
@@ -180,7 +187,7 @@ class OrganizationUserBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Mode
 
     def __unicode__(self):
         return u"{0} ({1})".format(self.user.get_full_name() if self.user.is_active else
-                self.user.email, self.organization.name)
+                                   self.user.email, self.organization.name)
 
     @property
     def name(self):

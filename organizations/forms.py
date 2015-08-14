@@ -6,7 +6,7 @@ from markitup.widgets import MarkItUpWidget
 from .models import Organization, OrganizationUser, get_user_model
 from .utils import create_organization
 from .backends import invitation_backend
-
+from mycoracle import utils as mycoracle_utils
 
 class OrganizationForm(forms.ModelForm):
     """Form class for updating Organizations"""
@@ -17,7 +17,7 @@ class OrganizationForm(forms.ModelForm):
         self.request = request
         super(OrganizationForm, self).__init__(*args, **kwargs)
         # self.fields['owner'].queryset = self.instance.organization_users.filter(
-         #       is_admin=True, user__is_active=True)
+        # is_admin=True, user__is_active=True)
         # self.fields['owner'].initial = self.instance.owner.organization_user
 
     class Meta:
@@ -75,13 +75,13 @@ class OrganizationUserAddForm(forms.ModelForm):
             raise forms.ValidationError(_("This email address has been used multiple times."))
         except get_user_model().DoesNotExist:
             user = invitation_backend().invite_by_email(
-                    self.cleaned_data['email'],
-                    **{'domain': get_current_site(self.request),
-                        'organization': self.organization,
-                        'sender': self.request.user})
+                self.cleaned_data['email'],
+                **{'domain': get_current_site(self.request),
+                   'organization': self.organization,
+                   'sender': self.request.user})
         return OrganizationUser.objects.create(user=user,
-                organization=self.organization,
-                is_admin=self.cleaned_data['is_admin'])
+                                               organization=self.organization,
+                                               is_admin=self.cleaned_data['is_admin'])
 
     def clean_email(self):
         email = self.cleaned_data['email']
@@ -115,8 +115,15 @@ class OrganizationAddForm(forms.ModelForm):
         is_active = True
         try:
             user = self.request.user
-            return create_organization(user, self.cleaned_data['name'],
-                self.cleaned_data['slug'], is_active=is_active, logo=self.cleaned_data['logo'], description=self.cleaned_data['description'])
+            site_profile = mycoracle_utils.get_current_user_site_profile(user)
+            return create_organization(user,
+                                       self.cleaned_data['name'],
+                                       self.cleaned_data['slug'],
+                                       is_active=is_active,
+                                       logo=self.cleaned_data['logo'],
+                                       description=self.cleaned_data['description'],
+                                       site=site_profile.site,
+                                       is_hidden=self.cleaned_data['is_hidden'])
         except get_user_model().DoesNotExist:
             pass
 
@@ -126,7 +133,7 @@ class SignUpForm(forms.Form):
     From class for signing up a new user and new account.
     """
     name = forms.CharField(max_length=50,
-            help_text=_("The name of the organization"))
+                           help_text=_("The name of the organization"))
     slug = forms.SlugField(max_length=50,
-            help_text=_("The name in all lowercase, suitable for URL identification"))
+                           help_text=_("The name in all lowercase, suitable for URL identification"))
     email = forms.EmailField()
