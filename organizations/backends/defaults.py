@@ -1,14 +1,36 @@
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2012-2015, Ben Lopatin and contributors
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.  Redistributions in binary
+# form must reproduce the above copyright notice, this list of conditions and the
+# following disclaimer in the documentation and/or other materials provided with
+# the distribution
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 """Backend classes should provide common interface
 """
-from __future__ import unicode_literals
-from builtins import str
-from builtins import object
 
 import uuid
 
 from django.conf import settings
 from django.conf.urls import patterns, url
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, get_user_model
 from django.core.urlresolvers import reverse
 from django.core.mail import EmailMessage
 from django.http import Http404
@@ -96,11 +118,11 @@ class BaseBackend(object):
             user.save()
             self.activate_organizations(user)
             user = authenticate(username=form.cleaned_data['username'],
-                                password=form.cleaned_data['password'])
+                    password=form.cleaned_data['password'])
             login(request, user)
             return redirect(self.get_success_url())
         return render(request, 'organizations/register_form.html',
-                      {'form': form})
+                {'form': form})
 
     def send_reminder(self, user, sender=None, **kwargs):
         """Sends a reminder email to the specified user"""
@@ -109,18 +131,18 @@ class BaseBackend(object):
         token = RegistrationTokenGenerator().make_token(user)
         kwargs.update({'token': token})
         self._send_email(user, self.reminder_subject, self.reminder_body,
-                         sender, **kwargs)
+                sender, **kwargs)
 
     # This could be replaced with a more channel agnostic function, most likely
     # in a custom backend.
     def _send_email(self, user, subject_template, body_template,
-                    sender=None, **kwargs):
+            sender=None, **kwargs):
         """Utility method for sending emails to new users"""
         if sender:
             from_email = "%s %s <%s>" % (sender.first_name, sender.last_name,
-                                         settings.DEFAULT_FROM_EMAIL)
+                    email.utils.parseaddr(settings.DEFAULT_FROM_EMAIL)[1])
             reply_to = "%s %s <%s>" % (sender.first_name, sender.last_name,
-                                       sender.email)
+                    sender.email)
         else:
             from_email = settings.DEFAULT_FROM_EMAIL
             reply_to = from_email
@@ -134,7 +156,7 @@ class BaseBackend(object):
         subject = subject_template.render(ctx).strip()  # Remove stray newline characters
         body = body_template.render(ctx)
         return EmailMessage(subject, body, from_email, [user.email],
-                            headers=headers).send()
+                headers=headers).send()
 
 
 class RegistrationBackend(BaseBackend):
@@ -155,12 +177,12 @@ class RegistrationBackend(BaseBackend):
 
     def get_urls(self):
         return patterns('',
-                        url(r'^complete/$', view=self.success_view,
-                            name="registration_success"),
-                        url(r'^(?P<user_id>[\d]+)-(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
-                            view=self.activate_view, name="registration_register"),
-                        url(r'^$', view=self.create_view, name="registration_create"),
-                        )
+            url(r'^complete/$', view=self.success_view,
+                name="registration_success"),
+            url(r'^(?P<user_id>[\d]+)-(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
+                view=self.activate_view, name="registration_register"),
+            url(r'^$', view=self.create_view, name="registration_create"),
+        )
 
     def register_by_email(self, email, sender=None, request=None, **kwargs):
         """
@@ -171,7 +193,7 @@ class RegistrationBackend(BaseBackend):
             user = self.user_model.objects.get(email=email)
         except self.user_model.DoesNotExist:
             user = self.user_model.objects.create(username=self.get_username(),
-                                                  email=email, password=self.user_model.objects.make_random_password())
+                    email=email, password=self.user_model.objects.make_random_password())
             user.is_active = False
             user.save()
         self.send_activation(user, sender, **kwargs)
@@ -186,7 +208,7 @@ class RegistrationBackend(BaseBackend):
         token = self.get_token(user)
         kwargs.update({'token': token})
         self._send_email(user, self.activation_subject, self.activation_body,
-                         sender, **kwargs)
+                sender, **kwargs)
 
     def create_view(self, request):
         """
@@ -200,18 +222,18 @@ class RegistrationBackend(BaseBackend):
                 user = self.user_model.objects.get(email=form.cleaned_data['email'])
             except self.user_model.DoesNotExist:
                 user = self.user_model.objects.create(username=self.get_username(),
-                                                      email=form.cleaned_data['email'],
-                                                      password=self.user_model.objects.make_random_password())
+                        email=form.cleaned_data['email'],
+                        password=self.user_model.objects.make_random_password())
                 user.is_active = False
                 user.save()
             else:
                 return redirect("organization_add")
             organization = create_organization(user, form.cleaned_data['name'],
-                                               form.cleaned_data['slug'], is_active=False)
+                    form.cleaned_data['slug'], is_active=False)
             return render(request, 'organizations/register_success.html',
-                          {'user': user, 'organization': organization})
+                    {'user': user, 'organization': organization})
         return render(request, 'organizations/register_form.html',
-                      {'form': form})
+                {'form': form})
 
     def success_view(self, request):
         return render(request, 'organizations/register_success.html', {})
@@ -235,9 +257,9 @@ class InvitationBackend(BaseBackend):
     def get_urls(self):
         # TODO enable naming based on a model?
         return patterns('',
-                        url(r'^(?P<user_id>[\d]+)-(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
-                            view=self.activate_view, name="invitations_register"),
-                        )
+            url(r'^(?P<user_id>[\d]+)-(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
+                view=self.activate_view, name="invitations_register"),
+        )
 
     def invite_by_email(self, email, sender=None, request=None, **kwargs):
         """Creates an inactive user with the information we know and then sends
@@ -251,7 +273,7 @@ class InvitationBackend(BaseBackend):
         except self.user_model.DoesNotExist:
             # TODO break out user creation process
             user = self.user_model.objects.create(username=self.get_username(),
-                                                  email=email, password=self.user_model.objects.make_random_password())
+                    email=email, password=self.user_model.objects.make_random_password())
             user.is_active = False
             user.save()
         self.send_invitation(user, sender, **kwargs)
@@ -267,4 +289,4 @@ class InvitationBackend(BaseBackend):
         token = self.get_token(user)
         kwargs.update({'token': token})
         self._send_email(user, self.invitation_subject, self.invitation_body,
-                         sender, **kwargs)
+                sender, **kwargs)

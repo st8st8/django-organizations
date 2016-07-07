@@ -9,3 +9,5 @@ docs/_build
 
 .coverage
 htmlcov/
+.cache
+.idea/

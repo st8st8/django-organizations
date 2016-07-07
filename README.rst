@@ -3,20 +3,20 @@ django-organizations
 ====================
 
 :Info: Groups and multi-user account management
-:Version: 0.5.1
+:Version: 0.7.0
 :Author: Ben Lopatin (http://benlopatin.com)
 
 .. image:: https://secure.travis-ci.org/bennylope/django-organizations.svg?branch=master
     :alt: Build Status
     :target: http://travis-ci.org/bennylope/django-organizations
 
-.. image:: https://pypip.in/v/django-organizations/badge.svg
-    :alt: Current PyPI release
-    :target: https://crate.io/packages/django-organizations
+.. image:: https://img.shields.io/pypi/v/django-organizations.svg
+    :alt: PyPI relesae
+    :target: https://pypi.python.org/pypi/django-organizations
 
-.. image:: https://pypip.in/d/django-organizations/badge.svg
-    :alt: Download count
-    :target: https://crate.io/packages/django-organizations
+.. image:: https://img.shields.io/pypi/dw/django-organizations.svg
+    :alt: PyPI downloads:
+    :target: https://pypi.python.org/pypi/django-organizations
 
 Separate individual user identity from accounts and subscriptions. Django
 Organizations adds user-managed, multi-user groups to your Django project. Use
@@ -51,17 +51,6 @@ By default you will need to install `django-extensions` or comparable libraries
 if you plan on adding Django Organizations as an installed app to your Django
 project. See below on configuring.
 
-.. note::
-    If you are using Django<=1.4.10, you will need to install an up-to-date version
-    of the `six` package. Previous Django versions included an older version of
-    `six` with which Django Organizations is incompatible.
-
-.. note::
-    If you are using South you must use 1.0+. Django Organizations is
-    incompatible with earlier versions of South, as this project uses the
-    `south_migrations` folder for South schema migrations in order to maintain
-    Django native migrations compatability.
-
 Configuring
 -----------
 
@@ -85,26 +74,26 @@ main application URL conf as well as your chosen invitation backend URLs::
         url(r'^invitations/', include(invitation_backend().get_urls())),
     )
 
-Timestamped models and auto slug fields
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Auto slug field
+~~~~~~~~~~~~~~~
 
 The standard way of using Django Organizations is to use it as an installed app
-in your Django project. Django Organizations will need to use a
-`TimeStampedModel` and an auto slug field which are not included. By default it
-will try to import these from django-extensions, but you can configure your own
-in settings. The defaults::
+in your Django project. Django Organizations will need to use an auto slug
+field which are not included. By default it will try to import these from
+django-extensions, but you can configure your own in settings. The default::
 
     ORGS_SLUGFIELD = 'django_extensions.db.fields.AutoSlugField'
-    ORGS_TIMESTAMPED_MODEL = 'django_extensions.db.models.TimeStampedModel'
 
-Alternatives::
+Alternative::
 
     ORGS_SLUGFIELD = 'autoslug.fields.AutoSlugField'
-    ORGS_TIMESTAMPED_MODEL = 'model_utils.models.TimeStampedModels'
+
+Previous versions allowed you to specify an `ORGS_TIMESTAMPED_MODEL` path. This
+is now ignored and the functionality satisifed by a vendored solution. A
+warning will be given but this *should not* have any effect on your code.
 
 - `django-extensions <http://django-extensions.readthedocs.org/en/latest/>`_
 - `Django Autoslug <https://pythonhosted.org/django-autoslug/>`_
-- `django-model-utils <https://django-model-utils.readthedocs.org/en/latest/>`_
 
 Registration & invitation backends
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -187,9 +176,8 @@ Targets & testing
 
 The codebase is targeted at tested against:
 
-* Django 1.4.x against Python 2.7
-* Django 1.7.x against Python 2.7, 3.3, 3.4
-* Django 1.8.x against Python 2.7, 3.3, 3.4
+* Django 1.8.x against Python 2.7, 3.4, 3.5
+* Django 1.9.x against Python 2.7, 3.4, 3.5
 
 To run the tests against all target environments, install `tox
 <https://testrun.org/tox/latest/>`_ and then execute the command:

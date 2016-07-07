@@ -1,3 +1,28 @@
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2012-2015, Ben Lopatin and contributors
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.  Redistributions in binary
+# form must reproduce the above copyright notice, this list of conditions and the
+# following disclaimer in the documentation and/or other materials provided with
+# the distribution
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 from __future__ import unicode_literals
 from builtins import object
 from django.contrib import messages
@@ -28,7 +53,6 @@ class OrganizationMixin(object):
         organization_pk = self.kwargs.get('organization_pk', None)
         self.organization = get_object_or_404(self.get_org_model(), pk=organization_pk)
         return self.organization
-
     get_organization = get_object  # Now available when `get_object` is overridden
 
 
@@ -44,7 +68,7 @@ class OrganizationUserMixin(OrganizationMixin):
     def get_context_data(self, **kwargs):
         kwargs = super(OrganizationUserMixin, self).get_context_data(**kwargs)
         kwargs.update({self.org_user_context_name: self.object,
-                       self.org_context_name: self.object.organization})
+            self.org_context_name: self.object.organization})
         return kwargs
 
     def get_object(self):
@@ -56,8 +80,8 @@ class OrganizationUserMixin(OrganizationMixin):
         organization_pk = self.kwargs.get('organization_pk', None)
         user_pk = self.kwargs.get('user_pk', None)
         self.organization_user = get_object_or_404(
-            OrganizationUser.objects.select_related(),
-            user__pk=user_pk, organization__pk=organization_pk)
+                OrganizationUser.objects.select_related(),
+                user__pk=user_pk, organization__pk=organization_pk)
         return self.organization_user
 
 
@@ -92,7 +116,7 @@ class MembershipRequiredMixin(object):
             raise PermissionDenied
 
         return super(MembershipRequiredMixin, self).dispatch(request, *args,
-                                                             **kwargs)
+                **kwargs)
 
 
 class AdminRequiredMixin(object):
@@ -140,4 +164,4 @@ class OwnerRequiredMixin(object):
             messages.warning(self.request, _("You must be the group owner to view this page"))
             raise PermissionDenied
         return super(OwnerRequiredMixin, self).dispatch(request, *args,
-                                                        **kwargs)
+                **kwargs)

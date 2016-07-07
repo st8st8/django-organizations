@@ -3,6 +3,34 @@
 History
 =======
 
+0.7.0
+-----
+
+Fixes some issues which may require some users to clear out extraneous
+migrations produced by using configurable base classes.
+
+* Fixes condition where `create_organization` produces an owner who is not an
+  admin user.
+* Fixes issue in slug field import resulting in spurious migrations.
+* Immediately deprecates configurable TimeStampedModel import. This caused
+  serious problems with Django's migration library which were not easily
+  resolved for a feature that added little value.
+
+0.6.1
+-----
+
+* Fixes email parsing from settings
+
+0.6.0
+-----
+
+* Adds Django 1.9 support
+* Drops support for Django 1.7
+* Fixes migration issue related to incomplete support for configurable model
+  fields and base model. If you are upgrading (especially from a fork of the
+  development version of django-organization) you may have an extra migration,
+  0002_auto_20151005_1823, which has been removed.
+
 0.5.3
 -----
 

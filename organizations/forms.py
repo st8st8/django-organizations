@@ -1,11 +1,12 @@
 from __future__ import unicode_literals
 from builtins import object
 from django import forms
-from django.contrib.sites.models import get_current_site
+from django.contrib.auth import get_user_model
+from django.contrib.sites.shortcuts import get_current_site
 from django.utils.translation import ugettext_lazy as _
 from markitup.widgets import MarkItUpWidget
 
-from .models import Organization, OrganizationUser, get_user_model
+from .models import Organization, OrganizationUser
 from .utils import create_organization
 from .backends import invitation_backend
 from mycoracle import utils as mycoracle_utils

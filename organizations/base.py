@@ -1,13 +1,36 @@
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2012-2015, Ben Lopatin and contributors
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.  Redistributions in binary
+# form must reproduce the above copyright notice, this list of conditions and the
+# following disclaimer in the documentation and/or other materials provided with
+# the distribution
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import django
 from __future__ import unicode_literals
 from builtins import str
 from builtins import object
-import django
-
 from django.conf import settings
 from django.db import models
 from django.db.models.fields import FieldDoesNotExist
 from django.db.models.base import ModelBase
-
 try:
     import six
 except ImportError:
@@ -23,10 +46,11 @@ class UnicodeMixin(object):
     """
     Python 2 and 3 string representation support.
     """
-    if six.PY3:
-        __str__ = lambda x: x.__unicode__()
-    else:
-        __str__ = lambda x: str(x).encode('utf-8')
+    def __str__(self):
+        if six.PY3:
+            return self.__unicode__()
+        else:
+            return unicode(self).encode('utf-8')
 
 
 class OrgMeta(ModelBase):
@@ -51,11 +75,6 @@ class OrgMeta(ModelBase):
         # Workaround compatibility issue with six.with_metaclass() and custom
         # Django model metaclasses:
         if not attrs and name == 'NewBase':
-            if django.VERSION < (1, 500000):
-                # Let Django fully ignore the class which is inserted in between.
-                # Django 1.5 fixed this, see https://code.djangoproject.com/ticket/19688
-                attrs['__module__'] = 'django.utils.six'
-                attrs['Meta'] = type(b'Meta', (), {'abstract': True})
             return super(OrgMeta, cls).__new__(cls, name, bases, attrs)
 
         base_classes = ['OrgModel', 'OrgUserModel', 'OrgOwnerModel']
@@ -90,11 +109,9 @@ class OrgMeta(ModelBase):
             cls.module_registry[module]['OrgModel']._meta.get_field("users")
         except FieldDoesNotExist:
             cls.module_registry[module]['OrgModel'].add_to_class("users",
-                                                                 models.ManyToManyField(USER_MODEL,
-                                                                                        through=
-                                                                                        cls.module_registry[module][
-                                                                                            'OrgUserModel'].__name__,
-                                                                                        related_name="%(app_label)s_%(class)s"))
+                models.ManyToManyField(USER_MODEL,
+                        through=cls.module_registry[module]['OrgUserModel'].__name__,
+                        related_name="%(app_label)s_%(class)s"))
 
     def update_org_users(cls, module):
         """
@@ -105,15 +122,13 @@ class OrgMeta(ModelBase):
             cls.module_registry[module]['OrgUserModel']._meta.get_field("user")
         except FieldDoesNotExist:
             cls.module_registry[module]['OrgUserModel'].add_to_class("user",
-                                                                     models.ForeignKey(USER_MODEL,
-                                                                                       related_name="%(app_label)s_%(class)s"))
+                models.ForeignKey(USER_MODEL, related_name="%(app_label)s_%(class)s"))
         try:
             cls.module_registry[module]['OrgUserModel']._meta.get_field("organization")
         except FieldDoesNotExist:
             cls.module_registry[module]['OrgUserModel'].add_to_class("organization",
-                                                                     models.ForeignKey(
-                                                                         cls.module_registry[module]['OrgModel'],
-                                                                         related_name="organization_users"))
+                models.ForeignKey(cls.module_registry[module]['OrgModel'],
+                        related_name="organization_users"))
 
     def update_org_owner(cls, module):
         """
@@ -123,15 +138,13 @@ class OrgMeta(ModelBase):
             cls.module_registry[module]['OrgOwnerModel']._meta.get_field("organization_user")
         except FieldDoesNotExist:
             cls.module_registry[module]['OrgOwnerModel'].add_to_class("organization_user",
-                                                                      models.OneToOneField(
-                                                                          cls.module_registry[module]['OrgUserModel']))
+                models.OneToOneField(cls.module_registry[module]['OrgUserModel']))
         try:
             cls.module_registry[module]['OrgOwnerModel']._meta.get_field("organization")
         except FieldDoesNotExist:
             cls.module_registry[module]['OrgOwnerModel'].add_to_class("organization",
-                                                                      models.OneToOneField(
-                                                                          cls.module_registry[module]['OrgModel'],
-                                                                          related_name="owner"))
+                models.OneToOneField(cls.module_registry[module]['OrgModel'],
+                        related_name="owner"))
 
 
 class OrganizationBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
@@ -143,7 +156,7 @@ class OrganizationBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
     """
 
     name = models.CharField(max_length=200,
-                            help_text=_("The name of the organization"))
+            help_text=_("The name of the organization"))
     is_active = models.BooleanField(default=True)
 
     objects = OrgManager()
@@ -165,7 +178,7 @@ class OrganizationBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
         model classes.
         """
         return "{0}_{1}".format(self._meta.app_label.lower(),
-            self.__class__.__name__.lower())
+                self.__class__.__name__.lower())
 
     def is_member(self, user):
         return True if user in self.users.all() else False
@@ -190,7 +203,7 @@ class OrganizationUserBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Mode
 
     def __unicode__(self):
         return u"{0} ({1})".format(self.user.get_full_name() if self.user.is_active else
-                                   self.user.email, self.organization.name)
+                self.user.email, self.organization.name)
 
     @property
     def name(self):

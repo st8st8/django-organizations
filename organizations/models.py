@@ -1,54 +1,53 @@
-from __future__ import unicode_literals
-from builtins import object
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2012-2015, Ben Lopatin and contributors
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.  Redistributions in binary
+# form must reproduce the above copyright notice, this list of conditions and the
+# following disclaimer in the documentation and/or other materials provided with
+# the distribution
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import warnings
+
 from django.conf import settings
-from django.contrib.sites.models import Site
-from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.urlresolvers import reverse
 from django.db import models
-from django.db.models.loading import get_model
-from django.utils import timezone
-from django.utils.importlib import import_module
 from django.utils.translation import ugettext_lazy as _
-from markitup.fields import MarkupField
 
 from .base import OrganizationBase, OrganizationUserBase, OrganizationOwnerBase
+from .fields import SlugField, AutoCreatedField, AutoLastModifiedField
 from .signals import user_added, user_removed, owner_changed
 
 USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
-ORGS_SLUGFIELD = getattr(settings, 'ORGS_SLUGFIELD',
-                         'django_extensions.db.fields.AutoSlugField')
-ORGS_TIMESTAMPED_MODEL = getattr(settings, 'ORGS_TIMESTAMPED_MODEL',
-                                 'django_extensions.db.models.TimeStampedModel')
+ORGS_TIMESTAMPED_MODEL = getattr(settings, 'ORGS_TIMESTAMPED_MODEL', None)
 
-try:
-    module, klass = ORGS_SLUGFIELD.rsplit('.', 1)
-    SlugField = getattr(import_module(module), klass)
-except:
-    raise ImproperlyConfigured("Your SlugField class, {0},"
-                               " is improperly defined".format(ORGS_SLUGFIELD))
-
-try:
-    module, klass = ORGS_TIMESTAMPED_MODEL.rsplit('.', 1)
-    TimeStampedModel = getattr(import_module(module), klass)
-except:
-    raise ImproperlyConfigured("Your TimeStampedBaseModel class, {0},"
-                               " is improperly defined".format(ORGS_TIMESTAMPED_MODEL))
+if ORGS_TIMESTAMPED_MODEL:
+    warnings.warn("Configured TimestampModel has been replaced and is now ignored.",
+                  DeprecationWarning)
 
 
-def get_user_model():
-    """
-    Returns the chosen user model as a class. This functionality won't be
-    builtin until Django 1.5.
-    """
-    try:
-        klass = get_model(USER_MODEL.split('.')[0], USER_MODEL.split('.')[1])
-    except:
-        raise ImproperlyConfigured("Your AUTH_USER_MODEL class '{0}'"
-                                   " is improperly defined".format(USER_MODEL))
-    if klass is None:
-        raise ImproperlyConfigured("Your AUTH_USER_MODEL class '{0}'"
-                                   " is not installed".format(USER_MODEL))
-    return klass
+class TimeStampedModel(models.Model):
+    created = AutoCreatedField()
+    modified = AutoLastModifiedField()
+
+    class Meta:
+        abstract = True
 
 
 class Organization(OrganizationBase, TimeStampedModel):
@@ -105,11 +104,11 @@ class Organization(OrganizationBase, TimeStampedModel):
                 raise PermissionDenied(u"Users not registered to {0} cannot join this group"
                                        .format(self.site.domain))
         org_user = OrganizationUser.objects.create(user=user,
-                                                   organization=self, is_admin=is_admin)
+                organization=self, is_admin=is_admin)
         if users_count == 0:
             # TODO get specific org user?
             OrganizationOwner.objects.create(organization=self,
-                                             organization_user=org_user)
+                    organization_user=org_user)
 
         # User added signal
         user_added.send(sender=self, user=user)
@@ -144,11 +143,11 @@ class Organization(OrganizationBase, TimeStampedModel):
             is_admin = True
 
         org_user, created = OrganizationUser.objects.get_or_create(
-            organization=self, user=user, defaults={'is_admin': is_admin})
+                organization=self, user=user, defaults={'is_admin': is_admin})
 
         if users_count == 0:
             OrganizationOwner.objects.create(organization=self,
-                                             organization_user=org_user)
+                    organization_user=org_user)
 
         if created:
             # User added signal
@@ -195,7 +194,7 @@ class OrganizationUser(OrganizationUserBase, TimeStampedModel):
 
     def __unicode__(self):
         return u"{0} ({1})".format(self.name if self.user.is_active else
-                                   self.user.email, self.organization.name)
+                self.user.email, self.organization.name)
 
     def delete(self, using=None):
         """
@@ -205,11 +204,10 @@ class OrganizationUser(OrganizationUserBase, TimeStampedModel):
         If there is no owner then the deletion should proceed.
         """
         from organizations.exceptions import OwnershipRequired
-
         try:
             if self.organization.owner.organization_user.id == self.id:
                 raise OwnershipRequired(_("Cannot delete organization owner "
-                                          "before organization or transferring ownership."))
+                    "before organization or transferring ownership."))
         # TODO This line presumes that OrgOwner model can't be modified
         except OrganizationOwner.DoesNotExist:
             pass
@@ -237,7 +235,6 @@ class OrganizationOwner(OrganizationOwnerBase, TimeStampedModel):
 
         """
         from organizations.exceptions import OrganizationMismatch
-
         if self.organization_user.organization.pk != self.organization.pk:
             raise OrganizationMismatch
         else:
