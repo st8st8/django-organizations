@@ -11,40 +11,50 @@
 {% endblock %}
 
 {% block content %}
-{{ form.media }}
-<style>
-    .markItUp {
-        margin: 0 auto !important;
-    }
-</style>
-<form action="{{ request.path }}" class="accountform" method="post" enctype="multipart/form-data">{% csrf_token %}
-    <fieldset>
-      {{ form.non_field_errors }}
-          <label></label><span class="required">*</span> = {% trans "required" %}
-            <br class="cb" />
-        {{ form.name.label_tag }}
-        {{ form.name }} {% if form.name.field.required %}<span class="required">*</span>{% endif %}
-        {{ form.name.errors }}
-        <br class="cb" />
+    {{ form.media }}
+    <style>
+        .markItUp {
+            margin: 0 auto !important;
+        }
+    </style>
+    <form action="{{ request.path }}" class="accountform" method="post" enctype="multipart/form-data">{% csrf_token %}
+        <fieldset>
+            {{ form.non_field_errors }}
+            <label></label><span class="required">*</span> = {% trans "required" %}
+            <br class="cb"/>
+            {{ form.name.label_tag }}
+            {{ form.name }} {% if form.name.field.required %}<span class="required">*</span>{% endif %}
+            {{ form.name.errors }}
+            <br class="cb"/>
 
-        {{ form.slug.label_tag }}
-        {{ form.slug }} {% if form.slug.field.required %}<span class="required">*</span>{% endif %}
-        {{ form.slug.errors }}
-        <br class="cb" />
-        <p class="help">{% trans "A web address friendly version of the name, lowercase letters, numbers, hyphens and underscores only." %}</p>
+            {{ form.slug.label_tag }}
+            {{ form.slug }} {% if form.slug.field.required %}<span class="required">*</span>{% endif %}
+            {{ form.slug.errors }}
+            <br class="cb"/>
 
-        {{ form.logo.label_tag }}
-        {{ form.logo }}
-        {{ form.logo.errors }}
-        <br class="cb" />
-        <p class="help">{% trans "The logo that appears on group lists." %}</p>
+            <p class="help">{% trans "A web address friendly version of the name, lowercase letters, numbers, hyphens and underscores only." %}</p>
 
-        {{ form.description.label_tag }}
-        {{ form.description }}
-        {{ form.description.errors }}
+            {{ form.logo.label_tag }}
+            {{ form.logo }}
+            {{ form.logo.errors }}
+            <br class="cb"/>
 
-      </fieldset>
-    <input type="hidden" name="owner" value="{{ request.user.id }}" />
-    <input type="submit" value="{% trans "submit" %}">
-</form>
+            <p class="help">{% trans "The logo that appears on group lists." %}</p>
+
+            {{ form.description.label_tag }}
+            {{ form.description }}
+            {{ form.description.errors }}
+            <br class="cb"/>
+
+            {{ form.is_hidden.label_tag }}
+            {{ form.is_hidden }}
+            {{ form.is_hidden.errors }}
+            <br class="cb"/>
+
+            <p class="help">{{ form.is_hidden_help_text }}</p>
+
+        </fieldset>
+        <input type="hidden" name="owner" value="{{ request.user.id }}"/>
+        <input type="submit" value="{% trans "submit" %}">
+    </form>
 {% endblock %}

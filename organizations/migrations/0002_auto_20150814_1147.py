@@ -55,12 +55,6 @@ class Migration(migrations.Migration):
             preserve_default=True,
         ),
         migrations.AddField(
-            model_name='organization',
-            name='site',
-            field=models.ForeignKey(blank=True, to='sites.Site', help_text='Tie this group explicitly to a brand so it is not visible outside this brand and users outside this brand cannot join', null=True),
-            preserve_default=True,
-        ),
-        migrations.AddField(
             model_name='organizationuser',
             name='is_moderator',
             field=models.BooleanField(default=False, help_text='This is not used.'),
@@ -71,5 +65,5 @@ class Migration(migrations.Migration):
             name='is_admin',
             field=models.BooleanField(default=False, help_text='This user can manage group members and change group details'),
             preserve_default=True,
-        ),
+        )
     ]

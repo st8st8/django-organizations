@@ -15,26 +15,31 @@
 {% endblock %}
 
 {% block content %}
-<div class="col-holder">
-    <div class="col" style="width:64%">
-         <h1 class="blue top">{{ organization }}</h1>
-        <br />
+    <div class="col-holder">
+        <div class="col" style="width:64%">
+            <h1 class="blue top">{{ organization }}</h1>
+            <br/>
 
-        {{ organization.description }}
-    </div>
-
-    <div class="col">
-        <div class="image-holder">
-            <img src="{{MEDIA_URL }}{{organization.logo }}" />
+            {{ organization.description }}
         </div>
-        <a class="btn light-blue-btn" href="{% url "url_group_learning-line" organization.pk %}"><span>{% trans "learning line" %}</span></a>
-        <a class="btn green-btn" href="{% url "organization_user_list" organization.pk %}"><span>{% trans "members" %}</span></a>
-        {% if request.user.profile.is_brand_supervisor %}
-        <a class="btn red-btn" href="{% url "organization_delete" organization.pk %}"><span>{% trans "delete" %}</span></a>
-        <a class="btn orange-btn" href="{% url "organization_activities" organization.pk %}"><span>{% trans "activities" %}</span></a>
-        {% endif %}
-        <a class="btn blue-btn" href="{% url "url_send_group_message" organization.pk %}"><span>{% trans "message members" %}</span></a>
+
+        <div class="col">
+            <div class="image-holder">
+                <img src="{{ MEDIA_URL }}{{ organization.logo }}"/>
+            </div>
+            <a class="btn light-blue-btn"
+               href="{% url "url_group_learning-line" organization.pk %}"><span>{% trans "learning line" %}</span></a>
+            <a class="btn green-btn"
+               href="{% url "organization_user_list" organization.pk %}"><span>{% trans "members" %}</span></a>
+            {% if request.user.profile.is_brand_supervisor %}
+                <a class="btn red-btn"
+                   href="{% url "organization_delete" organization.pk %}"><span>{% trans "delete" %}</span></a>
+                <a class="btn orange-btn"
+                   href="{% url "organization_activities" organization.pk %}"><span>{% trans "activities" %}</span></a>
+            {% endif %}
+            <a class="btn blue-btn"
+               href="{% url "url_send_group_message" organization.pk %}"><span>{% trans "message members" %}</span></a>
+        </div>
     </div>
-</div>
 {% endblock %}
 

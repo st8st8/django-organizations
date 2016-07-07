@@ -1,16 +1,18 @@
+from __future__ import unicode_literals
+from builtins import object
 from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.urlresolvers import reverse
 from django.db import models
-from django.db.models import get_model
+from django.db.models.loading import get_model
+from django.utils import timezone
 from django.utils.importlib import import_module
 from django.utils.translation import ugettext_lazy as _
 from markitup.fields import MarkupField
 
 from .base import OrganizationBase, OrganizationUserBase, OrganizationOwnerBase
 from .signals import user_added, user_removed, owner_changed
-
 
 USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
 ORGS_SLUGFIELD = getattr(settings, 'ORGS_SLUGFIELD',
@@ -57,19 +59,23 @@ class Organization(OrganizationBase, TimeStampedModel):
                      populate_from='name', unique=True,
                      help_text=_(u"The name in all lowercase, suitable for URL identification"))
 
-    is_pandi_club = models.BooleanField(default=False,
-                                        help_text=u"This group represents a club of P&I insurers")
     description = MarkupField(blank=True, null=False, default="")
     send_signup_message = models.BooleanField(default=True)
-    signup_message = models.TextField(default=u"You have been added to {0}.\nClick {1} for the group profile.",
+    signup_message = models.TextField(default="You have been added to {0}.\nClick {1} for the group profile.",
                                       null=True,
                                       blank=True,
                                       help_text=u"Message sent when user is added to group. "
-                                                u"Use {0} for the group name, and {1} for a link to the group.")
+                                                u"Use {{ organization.name }} for the group name,"
+                                                u" {{ user.get_full_name }} for the user's name,"
+                                                u" and {{ link }} for a link to the group.")
     logo = models.ImageField(upload_to="group_logos", blank=True, null=True)
     site = models.ForeignKey(Site, null=True, blank=True,
                              help_text=u"Tie this group explicitly to a brand so it is not visible outside "
                                        u"this brand and users outside this brand cannot join")
+    is_pandi_club = models.BooleanField(default=False,
+                                        help_text=u"This group represents a club of P&I insurers")
+    external_id = models.CharField(null=True, blank=True, max_length=255,
+                                  help_text="An identifier for this group in an external system")
     is_hidden = models.BooleanField(default=False,
                                     help_text=u"Users in hidden groups are not aware that they are "
                                               u"in the group, and cannot see the group's properties "
@@ -94,7 +100,7 @@ class Organization(OrganizationBase, TimeStampedModel):
         if users_count == 0:
             is_admin = True
         # TODO get specific org user?
-        if self.site_profile:
+        if self.site:
             if self.site != user.profile.site_registered:
                 raise PermissionDenied(u"Users not registered to {0} cannot join this group"
                                        .format(self.site.domain))
@@ -161,23 +167,27 @@ class Organization(OrganizationBase, TimeStampedModel):
         owner_changed.send(sender=self, old=old_owner, new=new_owner)
 
     def is_admin(self, user):
-        """
-        Returns True is user is an admin in the organization, otherwise false
-        """
-        return True if self.organization_users.filter(user=user, is_admin=True) else False
-
-    def is_owner(self, user):
-        """
-        Returns True is user is the organization's owner, otherwise false
-        """
-        return self.owner.organization_user.user == user
+        if user.is_superuser:
+            return True
+        if self.organization_users.filter(user=user, is_admin=True):
+            return True
+        if user.profile.is_supervisor and user.profile.site_registered == self.site:
+            return True
+        return False
 
 
 class OrganizationUser(OrganizationUserBase, TimeStampedModel):
+    date_created = models.DateTimeField(auto_now_add=True, null=False)
     is_admin = models.BooleanField(default=False,
                                    help_text=u"This user can manage group members and change group details")
     is_moderator = models.BooleanField(default=False,
-                                       help_text=u"This is not used.")
+                                       help_text=u"Moderators can access group dashboards without being able "
+                                                 u"to manipulate group membership. This is not used.")
+    # is_approval_monitor = models.BooleanField(default=False,
+    #                                           help_text=u"This user will be emailed when an unexpected user registers "
+    #                                                     u"(a userwhose email domain is not in the approved list). "
+    #                                                     u"This user can click a link to activate the user and "
+    #                                                     u"assign them into a group.")
 
     class Meta(OrganizationUserBase.Meta):
         verbose_name = _("organization user")
@@ -211,7 +221,7 @@ class OrganizationUser(OrganizationUserBase, TimeStampedModel):
 
 
 class OrganizationOwner(OrganizationOwnerBase, TimeStampedModel):
-    class Meta:
+    class Meta(object):
         verbose_name = _("organization owner")
         verbose_name_plural = _("organization owners")
 

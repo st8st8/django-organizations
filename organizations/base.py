@@ -1,28 +1,6 @@
-# -*- coding: utf-8 -*-
-
-# Copyright (c) 2012-2015, Ben Lopatin and contributors
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# Redistributions of source code must retain the above copyright notice, this
-# list of conditions and the following disclaimer.  Redistributions in binary
-# form must reproduce the above copyright notice, this list of conditions and the
-# following disclaimer in the documentation and/or other materials provided with
-# the distribution
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+from __future__ import unicode_literals
+from builtins import str
+from builtins import object
 import django
 
 from django.conf import settings
@@ -45,11 +23,10 @@ class UnicodeMixin(object):
     """
     Python 2 and 3 string representation support.
     """
-    def __str__(self):
-        if six.PY3:
-            return self.__unicode__()
-        else:
-            return unicode(self).encode('utf-8')
+    if six.PY3:
+        __str__ = lambda x: x.__unicode__()
+    else:
+        __str__ = lambda x: str(x).encode('utf-8')
 
 
 class OrgMeta(ModelBase):
@@ -78,7 +55,7 @@ class OrgMeta(ModelBase):
                 # Let Django fully ignore the class which is inserted in between.
                 # Django 1.5 fixed this, see https://code.djangoproject.com/ticket/19688
                 attrs['__module__'] = 'django.utils.six'
-                attrs['Meta'] = type('Meta', (), {'abstract': True})
+                attrs['Meta'] = type(b'Meta', (), {'abstract': True})
             return super(OrgMeta, cls).__new__(cls, name, bases, attrs)
 
         base_classes = ['OrgModel', 'OrgUserModel', 'OrgOwnerModel']
@@ -172,7 +149,7 @@ class OrganizationBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
     objects = OrgManager()
     active = ActiveOrgManager()
 
-    class Meta:
+    class Meta(object):
         abstract = True
         ordering = ['name']
 
@@ -206,7 +183,7 @@ class OrganizationUserBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Mode
     and the contrib.auth application.
     """
 
-    class Meta:
+    class Meta(object):
         abstract = True
         ordering = ['organization', 'user']
         unique_together = ('user', 'organization')
@@ -231,7 +208,7 @@ class OrganizationOwnerBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Mod
     Each organization must have one and only one organization owner.
     """
 
-    class Meta:
+    class Meta(object):
         abstract = True
 
     def __unicode__(self):

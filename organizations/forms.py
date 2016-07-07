@@ -1,28 +1,5 @@
-# -*- coding: utf-8 -*-
-
-# Copyright (c) 2012-2015, Ben Lopatin and contributors
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# Redistributions of source code must retain the above copyright notice, this
-# list of conditions and the following disclaimer.  Redistributions in binary
-# form must reproduce the above copyright notice, this list of conditions and the
-# following disclaimer in the documentation and/or other materials provided with
-# the distribution
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+from __future__ import unicode_literals
+from builtins import object
 from django import forms
 from django.contrib.sites.models import get_current_site
 from django.utils.translation import ugettext_lazy as _
@@ -32,6 +9,7 @@ from .models import Organization, OrganizationUser, get_user_model
 from .utils import create_organization
 from .backends import invitation_backend
 from mycoracle import utils as mycoracle_utils
+
 
 class OrganizationForm(forms.ModelForm):
     """Form class for updating Organizations"""
@@ -45,9 +23,9 @@ class OrganizationForm(forms.ModelForm):
         # is_admin=True, user__is_active=True)
         # self.fields['owner'].initial = self.instance.owner.organization_user
 
-    class Meta:
+    class Meta(object):
         model = Organization
-        exclude = ('users', 'is_active')
+        exclude = ('users', 'is_active', 'is_pandi_club')
 
     def save(self, commit=True):
         return super(OrganizationForm, self).save(commit=commit)
@@ -63,7 +41,7 @@ class OrganizationForm(forms.ModelForm):
 class OrganizationUserForm(forms.ModelForm):
     """Form class for updating OrganizationUsers"""
 
-    class Meta:
+    class Meta(object):
         model = OrganizationUser
         exclude = ('organization', 'user')
 
@@ -83,7 +61,7 @@ class OrganizationUserAddForm(forms.ModelForm):
         self.organization = organization
         super(OrganizationUserAddForm, self).__init__(*args, **kwargs)
 
-    class Meta:
+    class Meta(object):
         model = OrganizationUser
         exclude = ('user', 'organization')
 
@@ -126,7 +104,7 @@ class OrganizationAddForm(forms.ModelForm):
         self.request = request
         super(OrganizationAddForm, self).__init__(*args, **kwargs)
 
-    class Meta:
+    class Meta(object):
         model = Organization
         exclude = ('users', 'is_active')
 
@@ -155,7 +133,7 @@ class OrganizationAddForm(forms.ModelForm):
 
 class SignUpForm(forms.Form):
     """
-    Form class for signing up a new user and new account.
+    From class for signing up a new user and new account.
     """
     name = forms.CharField(max_length=50,
                            help_text=_("The name of the organization"))

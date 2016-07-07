@@ -1,23 +1,18 @@
-# -*- coding: utf-8 -*-
-
-
+from __future__ import unicode_literals
 from .models import Organization
 
 
-def create_organization(user, name, slug=None, is_active=None,
-        org_defaults=None, org_user_defaults=None, **kwargs):
+def create_organization(user, name, slug=None, is_active=None, site=None,
+                        org_defaults=None, org_user_defaults=None, **kwargs):
     """
     Returns a new organization, also creating an initial organization user who
     is the owner.
-
     The specific models can be specified if a custom organization app is used.
     The simplest way would be to use a partial.
-
     >>> from organizations.utils import create_organization
     >>> from myapp.models import Account
     >>> from functools import partial
     >>> create_account = partial(create_organization, model=Account)
-
     """
     org_model = kwargs.pop('model', None) or kwargs.pop('org_model', None) or Organization
     kwargs.pop('org_user_model', None)  # Discard deprecated argument
@@ -46,14 +41,12 @@ def create_organization(user, name, slug=None, is_active=None,
     if site is not None:
         org_defaults.update({'site': site})
 
-    org_defaults.update({'name': name})
-    organization = org_model.objects.create(**org_defaults)
-
-    org_user_defaults.update({'organization': organization, 'user': user})
-    new_user = org_user_model.objects.create(**org_user_defaults)
-
+    org_kwargs = dict(list(org_defaults.items()) + list(kwargs.items()))
+    organization = org_model.objects.create(name=name, **org_kwargs)
+    new_user = org_user_model.objects.create(organization=organization,
+                                             user=user, is_moderator=True, is_admin=True, **org_user_defaults)
     org_owner_model.objects.create(organization=organization,
-            organization_user=new_user)
+                                   organization_user=new_user)
     return organization
 
 
