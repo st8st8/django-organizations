@@ -149,12 +149,11 @@ class BaseBackend(object):
 
         headers = {'Reply-To': reply_to}
         kwargs.update({'sender': sender, 'user': user})
-        ctx = kwargs
 
         subject_template = loader.get_template(subject_template)
         body_template = loader.get_template(body_template)
-        subject = subject_template.render(ctx).strip()  # Remove stray newline characters
-        body = body_template.render(ctx)
+        subject = subject_template.render(kwargs).strip()  # Remove stray newline characters
+        body = body_template.render(kwargs)
         return EmailMessage(subject, body, from_email, [user.email],
                 headers=headers).send()
 
@@ -176,13 +175,13 @@ class RegistrationBackend(BaseBackend):
         return reverse('registration_success')
 
     def get_urls(self):
-        return patterns('',
+        return [
             url(r'^complete/$', view=self.success_view,
                 name="registration_success"),
             url(r'^(?P<user_id>[\d]+)-(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
                 view=self.activate_view, name="registration_register"),
             url(r'^$', view=self.create_view, name="registration_create"),
-        )
+        ]
 
     def register_by_email(self, email, sender=None, request=None, **kwargs):
         """
@@ -244,6 +243,8 @@ class InvitationBackend(BaseBackend):
     A backend for inviting new users to join the site as members of an
     organization.
     """
+    notification_subject = 'organizations/email/notification_subject.txt'
+    notification_body = 'organizations/email/notification_body.html'
     invitation_subject = 'organizations/email/invitation_subject.txt'
     invitation_body = 'organizations/email/invitation_body.html'
     reminder_subject = 'organizations/email/reminder_subject.txt'
@@ -256,10 +257,10 @@ class InvitationBackend(BaseBackend):
 
     def get_urls(self):
         # TODO enable naming based on a model?
-        return patterns('',
+        return [
             url(r'^(?P<user_id>[\d]+)-(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$',
                 view=self.activate_view, name="invitations_register"),
-        )
+        ]
 
     def invite_by_email(self, email, sender=None, request=None, **kwargs):
         """Creates an inactive user with the information we know and then sends
@@ -290,3 +291,18 @@ class InvitationBackend(BaseBackend):
         kwargs.update({'token': token})
         self._send_email(user, self.invitation_subject, self.invitation_body,
                 sender, **kwargs)
+
+    def send_notification(self, user, sender=None, **kwargs):
+        """
+        An intermediary function for sending an notification email informing
+        a pre-existing, active user that they have been added to a new
+        organization.
+        """
+        if not user.is_active:
+            return False
+        self._send_email(
+            user,
+            self.notification_subject,
+            self.notification_body,
+            sender,
+            **kwargs)

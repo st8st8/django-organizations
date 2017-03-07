@@ -2,21 +2,45 @@
 django-organizations
 ====================
 
-:Info: Groups and multi-user account management
-:Version: 0.7.0
-:Author: Ben Lopatin (http://benlopatin.com)
+.. start-table
 
-.. image:: https://secure.travis-ci.org/bennylope/django-organizations.svg?branch=master
-    :alt: Build Status
-    :target: http://travis-ci.org/bennylope/django-organizations
+.. list-table::
+    :stub-columns: 1
 
-.. image:: https://img.shields.io/pypi/v/django-organizations.svg
-    :alt: PyPI relesae
+    * - Summary
+      - Groups and multi-user account management
+    * - Author
+      - Ben Lopatin (http://benlopatin.com / https://wellfire.co)
+    * - Status
+      - |docs| |travis| |version| |wheel| |supported-versions| |supported-implementations|
+
+.. |docs| image:: https://readthedocs.org/projects/django-organizations/badge/?style=flat
+    :target: https://readthedocs.org/projects/django-organizations
+    :alt: Documentation Status
+
+.. |travis| image:: https://travis-ci.org/bennylope/django-organizations.svg?branch=master
+    :alt: Travis-CI Build Status
+    :target: https://travis-ci.org/bennylope/django-organizations
+
+.. |version| image:: https://img.shields.io/pypi/v/django-organizations.svg?style=flat
+    :alt: PyPI Package latest release
     :target: https://pypi.python.org/pypi/django-organizations
 
-.. image:: https://img.shields.io/pypi/dw/django-organizations.svg
-    :alt: PyPI downloads:
+.. |wheel| image:: https://img.shields.io/pypi/wheel/django-organizations.svg?style=flat
+    :alt: PyPI Wheel
     :target: https://pypi.python.org/pypi/django-organizations
+
+.. |supported-versions| image:: https://img.shields.io/pypi/pyversions/django-organizations.svg?style=flat
+    :alt: Supported versions
+    :target: https://pypi.python.org/pypi/django-organizations
+
+.. |supported-implementations| image:: https://img.shields.io/pypi/implementation/django-organizations.svg?style=flat
+    :alt: Supported implementations
+    :target: https://pypi.python.org/pypi/django-organizations
+
+
+.. end-table
+
 
 Separate individual user identity from accounts and subscriptions. Django
 Organizations adds user-managed, multi-user groups to your Django project. Use
@@ -68,11 +92,11 @@ main application URL conf as well as your chosen invitation backend URLs::
 
     from organizations.backends import invitation_backend
 
-    urlpatterns = patterns('',
+    urlpatterns = [
         ...
         url(r'^accounts/', include('organizations.urls')),
         url(r'^invitations/', include(invitation_backend().get_urls())),
-    )
+    ]
 
 Auto slug field
 ~~~~~~~~~~~~~~~
@@ -126,6 +150,7 @@ There are three models:
   easy to enforce ownership from within the organization's membership.
 
 The underlying organizations API is simple::
+
     >>> from organizations.utils import create_organization
     >>> chris = User.objects.get(username="chris")
     >>> soundgarden = create_organization(chris, "Soundgarden", org_user_defaults={'is_admin': True})
@@ -174,15 +199,30 @@ requests/suggestions.
 Targets & testing
 -----------------
 
-The codebase is targeted at tested against:
+The codebase is targeted and tested against:
 
-* Django 1.8.x against Python 2.7, 3.4, 3.5
-* Django 1.9.x against Python 2.7, 3.4, 3.5
+* Django 1.8.x against Python 2.7, 3.4, 3.5, and PyPy
+* Django 1.9.x against Python 2.7, 3.4, 3.5, and PyPy
+* Django 1.10.x against Python 2.7, 3.4, 3.5, and PyPy
 
 To run the tests against all target environments, install `tox
 <https://testrun.org/tox/latest/>`_ and then execute the command:
 
     tox
+
+Fast testing
+------------
+
+Testing each change on all the environments takes some time, you may
+want to test faster and avoid slowing down development by using pytest
+against your current environment::
+
+    pip install -r requirements-test.txt
+    py.test
+
+Supply the ``-x`` option for **failfast** mode::
+
+    py.test -x
 
 Submitting
 ----------

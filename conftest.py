@@ -25,6 +25,7 @@ def pytest_configure():
             # that the organizations app need not be installed in order to use
             # its base models.
             "test_accounts",
+            "test_abstract",
             "test_vendors",
             "organizations",
             "test_custom",
@@ -34,5 +35,11 @@ def pytest_configure():
         FIXTURE_DIRS=['tests/fixtures'],
         ORGS_SLUGFIELD='autoslug.AutoSlugField',
         ROOT_URLCONF="tests.urls",
+        TEMPLATES = [
+            {
+                'BACKEND': 'django.template.backends.django.DjangoTemplates',
+                'APP_DIRS': True,
+            },
+        ]
     )
     django.setup()

@@ -23,37 +23,21 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import warnings
+from .abstract import (AbstractOrganization,
+                       AbstractOrganizationUser,
+                       AbstractOrganizationOwner)
 
-from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.exceptions import PermissionDenied
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from markitup.fields import MarkupField
-
-from .base import OrganizationBase, OrganizationUserBase, OrganizationOwnerBase
-from .fields import SlugField, AutoCreatedField, AutoLastModifiedField
+from .fields import SlugField
 from .signals import user_added, user_removed, owner_changed
 
-USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
-ORGS_TIMESTAMPED_MODEL = getattr(settings, 'ORGS_TIMESTAMPED_MODEL', None)
 
-if ORGS_TIMESTAMPED_MODEL:
-    warnings.warn("Configured TimestampModel has been replaced and is now ignored.",
-                  DeprecationWarning)
-
-
-class TimeStampedModel(models.Model):
-    created = AutoCreatedField()
-    modified = AutoLastModifiedField()
-
-    class Meta:
-        abstract = True
-
-
-class Organization(OrganizationBase, TimeStampedModel):
+class Organization(AbstractOrganization):
     """
     Default Organization model.
     """
@@ -84,10 +68,6 @@ class Organization(OrganizationBase, TimeStampedModel):
                                               u"or members.")
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL,
                                help_text="If this is a subgroup, select its parent here")
-
-    class Meta(OrganizationBase.Meta):
-        verbose_name = _("organization")
-        verbose_name_plural = _("organizations")
 
     def __unicode__(self):
         return self.name
@@ -288,8 +268,16 @@ class Organization(OrganizationBase, TimeStampedModel):
             return True
         return False
 
+    class Meta(AbstractOrganization.Meta):
+        abstract = False
+        verbose_name = _("organization")
+        verbose_name_plural = _("organizations")
 
-class OrganizationUser(OrganizationUserBase, TimeStampedModel):
+
+class OrganizationUser(AbstractOrganizationUser):
+    """
+    Default OrganizationUser model.
+    """
     date_created = models.DateTimeField(auto_now_add=True, null=False)
     is_admin = models.BooleanField(default=False,
                                    help_text=u"This user can manage group members and change group details")
@@ -302,7 +290,8 @@ class OrganizationUser(OrganizationUserBase, TimeStampedModel):
     #                                                     u"This user can click a link to activate the user and "
     #                                                     u"assign them into a group.")
 
-    class Meta(OrganizationUserBase.Meta):
+    class Meta(AbstractOrganizationUser.Meta):
+        abstract = False
         verbose_name = _("organization user")
         verbose_name_plural = _("organization users")
 
@@ -325,15 +314,19 @@ class OrganizationUser(OrganizationUserBase, TimeStampedModel):
         # TODO This line presumes that OrgOwner model can't be modified
         except OrganizationOwner.DoesNotExist:
             pass
-        super(OrganizationUserBase, self).delete(using=using, keep_parents=keep_parents)
+        super(AbstractOrganizationUser, self).delete(using=using, keep_parents=keep_parents)
 
     def get_absolute_url(self):
         return reverse('organization_user_detail', kwargs={
             'organization_pk': self.organization.pk, 'user_pk': self.user.pk})
 
 
-class OrganizationOwner(OrganizationOwnerBase, TimeStampedModel):
-    class Meta(object):
+class OrganizationOwner(AbstractOrganizationOwner):
+    """
+    Default OrganizationOwner model.
+    """
+    class Meta(AbstractOrganizationOwner.Meta):
+        abstract = False
         verbose_name = _("organization owner")
         verbose_name_plural = _("organization owners")
 
@@ -352,4 +345,4 @@ class OrganizationOwner(OrganizationOwnerBase, TimeStampedModel):
         if self.organization_user.organization.pk != self.organization.pk:
             raise OrganizationMismatch
         else:
-            super(OrganizationOwnerBase, self).save(*args, **kwargs)
+            super(AbstractOrganizationOwner, self).save(*args, **kwargs)

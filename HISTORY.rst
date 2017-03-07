@@ -3,6 +3,35 @@
 History
 =======
 
+0.9.1
+-----
+
+* Fixes missing migration. Migration was created due to non-schema changes in models
+
+0.9.0
+-----
+
+* Add notification to users when added to an organization
+* New abstract models create separation between 'plain' base models and abstract
+  models that include abstracted functionality previously included only in
+  concrete models 
+* Python 3.6 and Django 1.11 test support 
+
+0.8.2
+-----
+
+* Updates setup classifiers information
+
+0.8.1
+-----
+
+* Fixes [lack of] validation bug in backend registration form
+
+0.8.0
+-----
+
+* Adds Django 1.10 support
+
 0.7.0
 -----
 

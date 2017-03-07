@@ -1,3 +1,28 @@
+# -*- coding: utf-8 -*-
+
+# Copyright (c) 2012-2015, Ben Lopatin and contributors
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# Redistributions of source code must retain the above copyright notice, this
+# list of conditions and the following disclaimer.  Redistributions in binary
+# form must reproduce the above copyright notice, this list of conditions and the
+# following disclaimer in the documentation and/or other materials provided with
+# the distribution
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 from __future__ import unicode_literals
 from builtins import object
 from django import forms
@@ -29,6 +54,8 @@ class OrganizationForm(forms.ModelForm):
         exclude = ('users', 'is_active', 'is_pandi_club')
 
     def save(self, commit=True):
+        if self.instance.owner.organization_user != self.cleaned_data['owner']:
+            self.instance.change_owner(self.cleaned_data['owner'])
         return super(OrganizationForm, self).save(commit=commit)
 
     def clean_owner(self):
@@ -79,13 +106,20 @@ class OrganizationUserAddForm(forms.ModelForm):
             raise forms.ValidationError(_("This email address has been used multiple times."))
         except get_user_model().DoesNotExist:
             user = invitation_backend().invite_by_email(
-                self.cleaned_data['email'],
-                **{'domain': get_current_site(self.request),
-                   'organization': self.organization,
-                   'sender': self.request.user})
+                    self.cleaned_data['email'],
+                    **{'domain': get_current_site(self.request),
+                        'organization': self.organization,
+                        'sender': self.request.user})
+        # Send a notification email to this user to inform them that they
+        # have been added to a new organization.
+        invitation_backend().send_notification(user, **{
+            'domain': get_current_site(self.request),
+            'organization': self.organization,
+            'sender': self.request.user,
+        })
         return OrganizationUser.objects.create(user=user,
-                                               organization=self.organization,
-                                               is_admin=self.cleaned_data['is_admin'])
+                organization=self.organization,
+                is_admin=self.cleaned_data['is_admin'])
 
     def clean_email(self):
         email = self.cleaned_data['email']
@@ -100,6 +134,8 @@ class OrganizationAddForm(forms.ModelForm):
     Form class for creating a new organization, complete with new owner, including a
     User instance, OrganizationUser instance, and OrganizationOwner instance.
     """
+    email = forms.EmailField(max_length=75,
+            help_text=_("The email address for the account owner"))
 
     def __init__(self, request, *args, **kwargs):
         self.request = request
@@ -108,9 +144,6 @@ class OrganizationAddForm(forms.ModelForm):
     class Meta(object):
         model = Organization
         exclude = ('users', 'is_active')
-
-    def is_valid(self):
-        return super(OrganizationAddForm, self).is_valid()
 
     def save(self, **kwargs):
         """
@@ -134,7 +167,7 @@ class OrganizationAddForm(forms.ModelForm):
 
 class SignUpForm(forms.Form):
     """
-    From class for signing up a new user and new account.
+    Form class for signing up a new user and new account.
     """
     name = forms.CharField(max_length=50,
                            help_text=_("The name of the organization"))

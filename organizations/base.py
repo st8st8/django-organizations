@@ -87,12 +87,15 @@ class OrgMeta(ModelBase):
                 'OrgOwnerModel': None,
             }
         for b in bases:
-            if b.__name__ == "OrganizationBase":
-                cls.module_registry[module]['OrgModel'] = model
-            elif b.__name__ == "OrganizationUserBase":
-                cls.module_registry[module]['OrgUserModel'] = model
-            elif b.__name__ == "OrganizationOwnerBase":
-                cls.module_registry[module]['OrgOwnerModel'] = model
+            key = None
+            if b.__name__ in ["AbstractOrganization", "OrganizationBase"]:
+                key = 'OrgModel'
+            elif b.__name__ in ["AbstractOrganizationUser", "OrganizationUserBase"]:
+                key = 'OrgUserModel'
+            elif b.__name__ in ["AbstractOrganizationOwner", "OrganizationOwnerBase"]:
+                key = 'OrgOwnerModel'
+            if key:
+                cls.module_registry[module][key] = model
 
         if all([cls.module_registry[module][klass] for klass in base_classes]):
             model.update_org(module)
@@ -147,7 +150,7 @@ class OrgMeta(ModelBase):
                         related_name="owner"))
 
 
-class OrganizationBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
+class AbstractBaseOrganization(UnicodeMixin, models.Model):
     """
     The umbrella object with which users can be associated.
 
@@ -181,7 +184,12 @@ class OrganizationBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
                 self.__class__.__name__.lower())
 
 
-class OrganizationUserBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
+class OrganizationBase(six.with_metaclass(OrgMeta, AbstractBaseOrganization)):
+    class Meta(AbstractBaseOrganization.Meta):
+        abstract = True
+
+
+class AbstractBaseOrganizationUser(UnicodeMixin, models.Model):
     """
     ManyToMany through field relating Users to Organizations.
 
@@ -217,7 +225,12 @@ class OrganizationUserBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Mode
         return "{0}".format(self.user)
 
 
-class OrganizationOwnerBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
+class OrganizationUserBase(six.with_metaclass(OrgMeta, AbstractBaseOrganizationUser)):
+    class Meta(AbstractBaseOrganizationUser.Meta):
+        abstract = True
+
+
+class AbstractBaseOrganizationOwner(UnicodeMixin, models.Model):
     """
     Each organization must have one and only one organization owner.
     """
@@ -227,3 +240,8 @@ class OrganizationOwnerBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Mod
 
     def __unicode__(self):
         return u"{0}: {1}".format(self.organization, self.organization_user)
+
+
+class OrganizationOwnerBase(six.with_metaclass(OrgMeta, AbstractBaseOrganizationOwner)):
+    class Meta(AbstractBaseOrganizationOwner.Meta):
+        abstract = True
