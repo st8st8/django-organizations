@@ -24,16 +24,16 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from __future__ import unicode_literals
-from django.conf.urls import patterns, url
 from django.conf.urls import url
 from django.contrib.auth.decorators import login_required
 
 from .views import (OrganizationList, OrganizationDetail,
-        OrganizationUpdate, OrganizationDelete, OrganizationCreate,
-        OrganizationUserList, OrganizationUserDetail, OrganizationUserUpdate,
-        OrganizationUserCreate, OrganizationUserRemind, OrganizationUserDelete)
-        OrganizationUserAddFromActivity, OrganizationBulkDelete, OrganizationUserAddFromBrand,
-        OrganizationActivities, OrganizationDashboard, OrganizationDashboardActivity)
+                    OrganizationUpdate, OrganizationDelete, OrganizationCreate,
+                    OrganizationUserList, OrganizationUserDetail, OrganizationUserUpdate,
+                    OrganizationUserCreate, OrganizationUserRemind, OrganizationUserDelete,
+                    OrganizationUserAddFromActivity, OrganizationBulkDelete, OrganizationUserAddFromBrand,
+                    OrganizationActivities, OrganizationDashboard, OrganizationDashboardActivity,
+                    OrganizationSubgroupsAjax)
 
 
 urlpatterns = [
@@ -50,7 +50,7 @@ urlpatterns = [
         name="organization_edit"),
     url(r'^(?P<organization_pk>[\d]+)/delete/$',
         view=login_required(OrganizationDelete.as_view()),
-        name="organization_delete"),,
+        name="organization_delete"),
    url(r'^(?P<organization_pk>[\d]+)/dashboard/$',
        view=login_required(OrganizationDashboard.as_view()),
        name="organization_dashboard"),
@@ -89,4 +89,7 @@ urlpatterns = [
    url(r'^(?P<organization_pk>[\d]+)/activities/$',
        view=login_required(OrganizationActivities.as_view()),
        name="organization_activities"),
+   url(r'^(?P<organization_pk>[\d]+)/subgroups-ajax/?$',
+       view=OrganizationSubgroupsAjax.as_view(),
+       name="organization_subgroups_ajax"),
 ]

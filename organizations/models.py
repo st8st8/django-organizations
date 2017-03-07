@@ -26,9 +26,12 @@
 import warnings
 
 from django.conf import settings
+from django.contrib.sites.models import Site
+from django.core.exceptions import PermissionDenied
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from markitup.fields import MarkupField
 
 from .base import OrganizationBase, OrganizationUserBase, OrganizationOwnerBase
 from .fields import SlugField, AutoCreatedField, AutoLastModifiedField
@@ -59,8 +62,8 @@ class Organization(OrganizationBase, TimeStampedModel):
                      help_text=_(u"The name in all lowercase, suitable for URL identification"))
 
     description = MarkupField(blank=True, null=False, default="")
-    send_signup_message = models.BooleanField(default=True)
-    signup_message = models.TextField(default="You have been added to {0}.\nClick {1} for the group profile.",
+    send_signup_message = models.BooleanField(default=False)
+    signup_message = models.TextField(default="You have been added to {{ organization.name }}.\nClick {{ link }} for the group profile.",
                                       null=True,
                                       blank=True,
                                       help_text=u"Message sent when user is added to group. "
@@ -71,7 +74,7 @@ class Organization(OrganizationBase, TimeStampedModel):
     site = models.ForeignKey(Site, null=True, blank=True,
                              help_text=u"Tie this group explicitly to a brand so it is not visible outside "
                                        u"this brand and users outside this brand cannot join")
-    is_pandi_club = models.BooleanField(default=False,
+    is_pandi_club = models.BooleanField(default=False, db_index=True,
                                         help_text=u"This group represents a club of P&I insurers")
     external_id = models.CharField(null=True, blank=True, max_length=255,
                                   help_text="An identifier for this group in an external system")
@@ -79,6 +82,8 @@ class Organization(OrganizationBase, TimeStampedModel):
                                     help_text=u"Users in hidden groups are not aware that they are "
                                               u"in the group, and cannot see the group's properties "
                                               u"or members.")
+    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL,
+                               help_text="If this is a subgroup, select its parent here")
 
     class Meta(OrganizationBase.Meta):
         verbose_name = _("organization")
@@ -100,9 +105,10 @@ class Organization(OrganizationBase, TimeStampedModel):
             is_admin = True
         # TODO get specific org user?
         if self.site:
-            if self.site != user.profile.site_registered:
-                raise PermissionDenied(u"Users not registered to {0} cannot join this group"
-                                       .format(self.site.domain))
+            if not user.is_superuser:
+                if self.site != user.profile.site_registered:
+                    raise PermissionDenied(u"Users not registered to {0} cannot join this group"
+                                           .format(self.site.domain))
         org_user = OrganizationUser.objects.create(user=user,
                 organization=self, is_admin=is_admin)
         if users_count == 0:
@@ -114,16 +120,124 @@ class Organization(OrganizationBase, TimeStampedModel):
         user_added.send(sender=self, user=user)
         return org_user
 
-    def remove_user(self, user):
-        """
-        Deletes a user from an organization.
-        """
-        org_user = OrganizationUser.objects.get(user=user,
-                                                organization=self)
-        org_user.delete()
+    def has_member(self, user):
+        try:
+            ou = OrganizationUser.active.get(
+                organization=self,
+                user=user
+            )
+            return True
+        except OrganizationUser.DoesNotExist:
+            return False
 
-        # User removed signal
-        user_removed.send(sender=self, user=user)
+    @staticmethod
+    def get_for_site(site, parents_only=False, subgroups_only=False):
+        queryset = {
+            "is_active": True,
+            "is_hidden": False,
+            "site": site
+        }
+        queryset_exclude = {}
+        if parents_only:
+            queryset["parent"] = None
+        if subgroups_only:
+            queryset_exclude["parent"] = None
+
+        return Organization.objects.filter(**queryset).exclude(**queryset_exclude)
+
+    def get_parents(self, include_self=False):
+        parents = [self, ] if include_self else []
+        parent = self.parent
+        while parent:
+            parents += [self.parent]
+            parent = self.parent
+
+        return parents
+
+    def get_subgroups(self):
+        subgroups = Organization.objects.filter(
+            parent=self
+        )
+        return subgroups
+
+    def get_members(self, include_admins=True, include_users=True, same_site_only=True, include_parents=False, include_superusers=False, *args, **kwargs):
+        query = {
+            "user__is_active": True
+        }
+
+        if include_admins and not include_users:
+            query["is_admin"] = True
+        elif not include_admins and include_users:
+            query["is_admin"] = False
+        elif not include_users and not include_admins:
+            raise ValueError("Must include_admins or include_users")
+
+        if same_site_only and self.site:
+            query["user__profile__site_registered"] = self.site
+
+        if include_parents:
+            query["organization__in"] = self.get_parents(include_self=True),
+        else:
+            query["organization"] = self
+
+        if not include_superusers:
+            query["user__is_superuser"] = False
+
+        return OrganizationUser.objects.filter(**query).select_related()
+
+    def remove_user(self, user):
+        try:
+            ou = OrganizationUser.objects.filter(
+                user=user,
+                organization=self
+            )
+            ou.delete()
+            # User removed signal
+            user_removed.send(sender=self, user=user)
+
+        except OrganizationUser.DoesNotExist:
+            pass
+
+        for o in self.get_subgroups():
+            try:
+                ou = OrganizationUser.objects.filter(
+                    user=user,
+                    organization=o
+                )
+                ou.delete()
+                user_removed.send(sender=self, user=user)
+            except OrganizationUser.DoesNotExist:
+                pass
+
+    def add_user_to_unique_parent_group(self, user, site, is_admin=False):
+        if self.site:
+            if not user.is_superuser:
+                if self.site != user.profile.site_registered:
+                    raise PermissionDenied(u"Users not registered to {0} cannot join this group"
+                                           .format(self.site.domain))
+
+        if self.parent:
+            raise PermissionDenied(u"Cannot add user to parent with parents")
+
+        for o in self.get_for_site(site, parents_only=True):
+            o.remove_user(user)
+
+        self.add_user(user, is_admin)
+
+    def add_user_to_unique_subgroup(self, user, is_admin=False):
+        if self.site:
+            if not user.is_superuser:
+                if self.site != user.profile.site_registered:
+                    raise PermissionDenied(u"Users not registered to {0} cannot join this group"
+                                           .format(self.site.domain))
+
+        if not self.parent:
+            raise PermissionDenied(u"Cannot add user to subgroup with no parent")
+
+        for o in self.parent.get_subgroups():
+            o.remove_user(user)
+
+        self.add_user(user, is_admin)
 
     def get_or_add_user(self, user, **kwargs):
         """
@@ -196,7 +310,7 @@ class OrganizationUser(OrganizationUserBase, TimeStampedModel):
         return u"{0} ({1})".format(self.name if self.user.is_active else
                 self.user.email, self.organization.name)
 
-    def delete(self, using=None):
+    def delete(self, using=None, keep_parents=False):
         """
         If the organization user is also the owner, this should not be deleted
         unless it's part of a cascade from the Organization.
@@ -211,7 +325,7 @@ class OrganizationUser(OrganizationUserBase, TimeStampedModel):
         # TODO This line presumes that OrgOwner model can't be modified
         except OrganizationOwner.DoesNotExist:
             pass
-        super(OrganizationUserBase, self).delete(using=using)
+        super(OrganizationUserBase, self).delete(using=using, keep_parents=keep_parents)
 
     def get_absolute_url(self):
         return reverse('organization_user_detail', kwargs={

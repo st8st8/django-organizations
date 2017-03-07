@@ -23,8 +23,8 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from django.utils.importlib import import_module
 from __future__ import unicode_literals
+from importlib import import_module
 
 from organizations.app_settings import (ORGS_INVITATION_BACKEND,
         ORGS_REGISTRATION_BACKEND)

@@ -22,9 +22,9 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+from __future__ import unicode_literals
 
 import django
-from __future__ import unicode_literals
 from builtins import str
 from builtins import object
 from django.conf import settings
@@ -37,7 +37,7 @@ except ImportError:
     from django.utils import six
 from django.utils.translation import ugettext_lazy as _
 
-from .managers import OrgManager, ActiveOrgManager
+from .managers import OrgManager, ActiveOrgManager, VisibleOrgManager, ActiveOrgUserManager, VisibleOrgUserManager
 
 USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
 
@@ -154,13 +154,13 @@ class OrganizationBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
     An organization can have multiple users but only one who can be designated
     the owner user.
     """
-
-    name = models.CharField(max_length=200,
+    name = models.CharField(max_length=200, db_index=True,
             help_text=_("The name of the organization"))
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, db_index=True)
 
     objects = OrgManager()
     active = ActiveOrgManager()
+    visible = VisibleOrgManager()
 
     class Meta(object):
         abstract = True
@@ -180,9 +180,6 @@ class OrganizationBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
         return "{0}_{1}".format(self._meta.app_label.lower(),
                 self.__class__.__name__.lower())
 
-    def is_member(self, user):
-        return True if user in self.users.all() else False
-
 
 class OrganizationUserBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Model)):
     """
@@ -195,6 +192,10 @@ class OrganizationUserBase(six.with_metaclass(OrgMeta, UnicodeMixin, models.Mode
     Authentication and general user information is handled by the User class
     and the contrib.auth application.
     """
+
+    objects = models.Manager()
+    active = ActiveOrgUserManager()
+    visible = VisibleOrgUserManager()
 
     class Meta(object):
         abstract = True

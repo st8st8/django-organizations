@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from .models import Organization
 
 
-def create_organization(user, name, slug=None, is_active=None, site=None,
+def create_organization(user, name, slug=None, is_active=None, is_hidden=None, site=None,
                         org_defaults=None, org_user_defaults=None, **kwargs):
     """
     Returns a new organization, also creating an initial organization user who
@@ -37,13 +37,17 @@ def create_organization(user, name, slug=None, is_active=None, site=None,
         org_defaults.update({'slug': slug})
     if is_active is not None:
         org_defaults.update({'is_active': is_active})
+    if is_hidden is not None:
+        org_defaults.update({'is_hidden': is_hidden})
     if site is not None:
         org_defaults.update({'site': site})
 
-    org_kwargs = dict(list(org_defaults.items()) + list(kwargs.items()))
-    organization = org_model.objects.create(name=name, **org_kwargs)
-    new_user = org_user_model.objects.create(organization=organization,
-                                             user=user, is_moderator=True, is_admin=True, **org_user_defaults)
+    org_defaults.update({'name': name})
+    organization = org_model.objects.create(**org_defaults)
+
+    org_user_defaults.update({'organization': organization, 'user': user})
+    new_user = org_user_model.objects.create(**org_user_defaults)
+
     org_owner_model.objects.create(organization=organization,
                                    organization_user=new_user)
     return organization

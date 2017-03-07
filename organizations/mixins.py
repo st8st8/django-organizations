@@ -51,7 +51,7 @@ class OrganizationMixin(object):
         if hasattr(self, 'organization'):
             return self.organization
         organization_pk = self.kwargs.get('organization_pk', None)
-        self.organization = get_object_or_404(self.get_org_model(), pk=organization_pk)
+        self.organization = get_object_or_404(self.get_org_model(), pk=organization_pk, is_active=True)
         return self.organization
     get_organization = get_object  # Now available when `get_object` is overridden
 
@@ -99,7 +99,7 @@ class MembershipRequiredMixin(object):
             # Generally, only supervisors and admins can see views relating to hidden groups
             return False
 
-        if not self.organization.is_member(request.user):
+        if not self.organization.has_member(request.user):
             messages.warning(self.request, _("You must be a member of this group to view this page"))
             return False
         else:
